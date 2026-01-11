@@ -1,0 +1,11 @@
+node_modules
+dist
+*.log
+.git
+.gitignore
+README.md
+.env*
+*.md
+.DS_Store
+circuits/*/target
+!circuits/obsidian_batch_verifier/target
