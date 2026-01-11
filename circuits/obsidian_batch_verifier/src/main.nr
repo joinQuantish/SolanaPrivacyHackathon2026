@@ -134,6 +134,19 @@ fn compute_merkle_root(leaf: Field, path: [Field; MERKLE_DEPTH], index: Field) -
     current
 }
 
+// Test to print commitment hash
+#[test]
+fn test_print_hash() {
+    let commitment_hash = hash_5([1, 1, 1000000, 12345, 999]);
+    println(f"Commitment hash: {commitment_hash}");
+
+    // Build merkle root like we do in TS
+    let mut current = commitment_hash;
+    // Leaf 0, sibling is 0
+    current = hash_2([current, 0]);
+    println(f"After level 0: {current}");
+}
+
 // Test module
 #[test]
 fn test_single_order() {

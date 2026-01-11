@@ -20,6 +20,13 @@ import { poseidonHash2, poseidonHash5 } from './poseidon.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Calculate the WASM path for bb.js
+function getWasmPath(): string {
+  // Find the bb.js module directory
+  const bbJsDir = dirname(fileURLToPath(import.meta.resolve('@aztec/bb.js')));
+  return join(bbJsDir, 'barretenberg_wasm', 'barretenberg-threads.wasm.gz');
+}
+
 // Cached circuit and backend instances
 let cachedNoir: Noir | null = null;
 let cachedBackend: UltraHonkBackend | null = null;
@@ -44,8 +51,10 @@ async function initializeProver(): Promise<{ noir: Noir; backend: UltraHonkBacke
   const circuitJson = JSON.parse(await readFile(circuitPath, 'utf-8'));
   cachedCircuit = circuitJson;
 
-  // Initialize UltraHonk backend
-  const backend = new UltraHonkBackend(circuitJson.bytecode);
+  // Initialize UltraHonk backend with explicit WASM path
+  const wasmPath = getWasmPath();
+  console.log('Using WASM path:', wasmPath);
+  const backend = new UltraHonkBackend(circuitJson.bytecode, { threads: 1, wasmPath });
 
   // Initialize Noir
   const noir = new Noir(circuitJson);
@@ -132,8 +141,22 @@ export async function generateProof(request: ProveRequest): Promise<ProveRespons
       commitments: paddedCommitments,
       allocations: paddedAllocations,
       merkle_paths: merklePaths,
-      num_orders: numOrders.toString(),
+      num_orders: numOrders,  // Pass as number for u32
     };
+
+    // Debug: print circuit inputs
+    console.log('Circuit inputs:', JSON.stringify({
+      batch_id: circuitInputs.batch_id,
+      merkle_root: circuitInputs.merkle_root,
+      total_usdc_in: circuitInputs.total_usdc_in,
+      total_shares_out: circuitInputs.total_shares_out,
+      market_id: circuitInputs.market_id,
+      side: circuitInputs.side,
+      num_orders: circuitInputs.num_orders,
+      commitment_0: circuitInputs.commitments[0],
+      allocation_0: circuitInputs.allocations[0],
+      merkle_path_0: circuitInputs.merkle_paths[0],
+    }, null, 2));
 
     // Step 5: Generate witness and proof
     console.log('Generating proof (this may take a while)...');

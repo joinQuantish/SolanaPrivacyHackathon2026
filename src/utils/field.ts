@@ -15,12 +15,15 @@ export function hexToField(hex: string): string {
 }
 
 /**
- * Convert a Solana pubkey (base58) to a field element string
- * For simplicity, we hash the pubkey bytes to fit in the field
+ * Convert a Solana pubkey (base58) or numeric string to a field element
  */
 export function pubkeyToField(pubkey: string): string {
-  // Base58 decode - simplified for common Solana pubkey format
-  // In production, use @solana/web3.js PublicKey
+  // If it's a pure numeric string, use it directly
+  if (/^\d+$/.test(pubkey)) {
+    return decimalToField(pubkey);
+  }
+
+  // Otherwise, base58 decode (for real Solana pubkeys)
   const bytes = base58Decode(pubkey);
 
   // Take first 31 bytes to ensure we fit in field (< 2^248)
