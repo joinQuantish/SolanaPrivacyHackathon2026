@@ -13,8 +13,8 @@ const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 // Solana Memo Program ID
 const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 
-// Polling interval (ms)
-const POLL_INTERVAL = 5000; // 5 seconds
+// Polling interval (ms) - use longer interval to avoid rate limits on public RPC
+const POLL_INTERVAL = 15000; // 15 seconds
 
 // Track processed signatures to avoid duplicates
 const processedSignatures = new Set<string>();
