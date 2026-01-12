@@ -52,20 +52,35 @@ export class RelayWallet {
   }
 
   /**
-   * Create a new wallet or load existing one from file
+   * Create a new wallet or load from environment/file
+   * Priority: RELAY_WALLET_PRIVATE_KEY env var > file > generate new
    */
   static async initialize(walletPath?: string): Promise<RelayWallet> {
     const path = walletPath || join(__dirname, '../../.wallet/relay-keypair.json');
 
     let keypair: Keypair;
 
+    // Priority 1: Load from environment variable (for Railway persistence)
+    const envPrivateKey = process.env.RELAY_WALLET_PRIVATE_KEY;
+    if (envPrivateKey) {
+      console.log('Loading relay wallet from RELAY_WALLET_PRIVATE_KEY env var...');
+      try {
+        const secretKey = bs58.decode(envPrivateKey);
+        keypair = Keypair.fromSecretKey(secretKey);
+        console.log('Relay wallet public key:', keypair.publicKey.toBase58());
+        return new RelayWallet(keypair);
+      } catch (err) {
+        console.error('Invalid RELAY_WALLET_PRIVATE_KEY, falling back to file/generate');
+      }
+    }
+
+    // Priority 2: Load from file
     if (existsSync(path)) {
-      // Load existing wallet
-      console.log('Loading existing relay wallet...');
+      console.log('Loading existing relay wallet from file...');
       const secretKey = JSON.parse(await readFile(path, 'utf-8'));
       keypair = Keypair.fromSecretKey(new Uint8Array(secretKey));
     } else {
-      // Generate new wallet
+      // Priority 3: Generate new wallet
       console.log('Generating new relay wallet...');
       keypair = Keypair.generate();
 
@@ -74,9 +89,15 @@ export class RelayWallet {
       const { mkdir } = await import('fs/promises');
       await mkdir(dir, { recursive: true });
 
-      // Save keypair (in production, use secure key management!)
+      // Save keypair (in production, use RELAY_WALLET_PRIVATE_KEY env var!)
       await writeFile(path, JSON.stringify(Array.from(keypair.secretKey)));
       console.log('New wallet saved to:', path);
+      console.log('');
+      console.log('=== IMPORTANT: To persist this wallet across deploys ===');
+      console.log('Set RELAY_WALLET_PRIVATE_KEY environment variable to:');
+      console.log(bs58.encode(keypair.secretKey));
+      console.log('========================================================');
+      console.log('');
     }
 
     console.log('Relay wallet public key:', keypair.publicKey.toBase58());
