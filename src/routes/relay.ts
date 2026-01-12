@@ -181,8 +181,23 @@ router.post('/order', async (req: Request, res: Response) => {
       commitmentHash: order.commitmentHash,
       status: order.status,
       distribution: order.distribution,
-      depositAddress: wallet.getAddress(),
-      note: `Please send ${submission.usdcAmount} USDC to the deposit address`,
+
+      // Deposit instructions
+      deposit: {
+        address: wallet.getAddress(),
+        amount: submission.usdcAmount,
+        memo: order.id, // IMPORTANT: Include this memo in the transaction
+        expiresAt: order.depositExpiresAt,
+        expiresInSeconds: 3600,
+      },
+
+      // Frontend integration note
+      instructions: {
+        step1: 'Send exactly ' + submission.usdcAmount + ' USDC to the deposit address',
+        step2: 'Include the memo field with value: ' + order.id,
+        step3: 'Transaction will be detected automatically within ~30 seconds',
+        important: 'The memo field is required for automatic matching. Without it, manual review is needed.',
+      },
     });
   } catch (error) {
     res.status(500).json({

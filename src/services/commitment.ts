@@ -1,5 +1,5 @@
 import type { OrderCommitment, DistributionEntry } from '../types/index.js';
-import { pubkeyToField, sideToField, decimalToField, hexToField, marketIdToField, stringToField } from '../utils/field.js';
+import { pubkeyToField, sideToField, usdcToField, hexToField, marketIdToField, stringToField } from '../utils/field.js';
 
 /**
  * Compute hash of a distribution array
@@ -59,7 +59,7 @@ export async function computeCommitmentHash(
   const inputs = [
     marketIdToField(commitment.marketId),
     sideToField(commitment.side),
-    decimalToField(commitment.usdcAmount),
+    usdcToField(commitment.usdcAmount), // Convert USDC string (e.g., "50.00") to integer field
     distributionField,
     stringToField(commitment.salt), // Salt can be any string now
   ];
@@ -80,7 +80,7 @@ export function commitmentToCircuitFormat(commitment: OrderCommitment): {
   return {
     market_id: marketIdToField(commitment.marketId),
     side: sideToField(commitment.side),
-    usdc_amount: decimalToField(commitment.usdcAmount),
+    usdc_amount: usdcToField(commitment.usdcAmount),
     destination_wallet: pubkeyToField(commitment.destinationWallet),
     salt: stringToField(commitment.salt),
   };

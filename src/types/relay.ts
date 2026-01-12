@@ -4,12 +4,14 @@
 
 // Order status in the relay
 export type OrderStatus =
-  | 'pending'      // Waiting for batch to fill
-  | 'committed'    // In a batch, waiting for execution
-  | 'executing'    // Trade in progress
-  | 'completed'    // Shares distributed
-  | 'refunded'     // Partially/fully refunded
-  | 'failed';      // Execution failed
+  | 'pending_deposit' // Waiting for user to send USDC
+  | 'pending'         // Deposit confirmed, waiting for batch to fill
+  | 'committed'       // In a batch, waiting for execution
+  | 'executing'       // Trade in progress
+  | 'completed'       // Shares distributed
+  | 'refunded'        // Partially/fully refunded
+  | 'failed'          // Execution failed
+  | 'expired';        // Deposit not received in time
 
 // Batch status
 export type BatchStatus =
@@ -88,6 +90,13 @@ export interface RelayOrder {
   // Refund transaction (if any)
   refundTxSignature?: string;
   refundWallet?: string;          // Where refund was sent (first distribution wallet)
+  refundReason?: string;          // Why refund occurred
+
+  // Deposit tracking
+  depositTxSignature?: string;    // User's deposit transaction
+  depositSenderWallet?: string;   // Wallet that sent the deposit
+  depositConfirmedAt?: Date;      // When deposit was confirmed
+  depositExpiresAt?: Date;        // When deposit window expires
 
   // Timestamps
   createdAt: Date;

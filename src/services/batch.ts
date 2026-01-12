@@ -149,11 +149,14 @@ export async function submitOrder(
   // Get or create batch
   const batch = getOrCreateCollectingBatch(submission.marketId, submission.side, config);
 
+  // Deposit expires in 1 hour
+  const depositExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
   // Create order
   const order: RelayOrder = {
     id: uuidv4(),
     batchId: batch.id,
-    status: 'pending',
+    status: 'pending_deposit', // Waiting for user to send USDC
     marketId: submission.marketId,
     side: submission.side,
     usdcAmount: submission.usdcAmount,
@@ -161,6 +164,7 @@ export async function submitOrder(
     destinationWallet, // Primary wallet (first in distribution)
     salt,
     commitmentHash,
+    depositExpiresAt,
     createdAt: new Date(),
   };
 
@@ -526,4 +530,89 @@ export function getReadyBatches(config: RelayConfig = { ...DEFAULT_RELAY_CONFIG 
   }
 
   return ready;
+}
+
+/**
+ * Activate an order after deposit is confirmed
+ */
+export async function activateOrder(
+  orderId: string,
+  depositTxSignature: string,
+  senderWallet: string
+): Promise<{ success: boolean; error?: string }> {
+  const order = orders.get(orderId);
+  if (!order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  if (order.status !== 'pending_deposit') {
+    return { success: false, error: `Order status is ${order.status}, expected pending_deposit` };
+  }
+
+  // Update order with deposit info
+  order.status = 'pending';
+  order.depositTxSignature = depositTxSignature;
+  order.depositSenderWallet = senderWallet;
+  order.depositConfirmedAt = new Date();
+
+  console.log(`Order ${orderId} activated. Deposit confirmed from ${senderWallet}`);
+
+  // Check if batch is ready to execute
+  const batch = order.batchId ? batches.get(order.batchId) : null;
+  if (batch) {
+    const batchOrders = getBatchOrders(batch.id);
+    const activeOrders = batchOrders.filter(o => o.status === 'pending');
+    console.log(`Batch ${batch.id} has ${activeOrders.length}/${batchOrders.length} active orders`);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Refund an order (amount mismatch or cancellation)
+ */
+export async function refundOrder(
+  orderId: string,
+  recipientWallet: string,
+  amount: string,
+  reason: string
+): Promise<{ success: boolean; txSignature?: string; error?: string }> {
+  const order = orders.get(orderId);
+
+  // Update order status
+  if (order) {
+    order.status = 'refunded';
+    order.refundAmount = amount;
+    order.refundWallet = recipientWallet;
+    order.refundReason = reason;
+  }
+
+  // Execute refund
+  const wallet = await getRelayWallet();
+  const result = await wallet.transferUsdc(recipientWallet, parseFloat(amount));
+
+  if (result.success) {
+    if (order) {
+      order.refundTxSignature = result.signature;
+    }
+    console.log(`Refunded ${amount} USDC to ${recipientWallet}. Reason: ${reason}`);
+    return { success: true, txSignature: result.signature };
+  }
+
+  console.error(`Refund failed for order ${orderId}: ${result.error}`);
+  return { success: false, error: result.error };
+}
+
+/**
+ * Get orders awaiting deposit
+ */
+export function getPendingDepositOrders(): RelayOrder[] {
+  return Array.from(orders.values()).filter(o => o.status === 'pending_deposit');
+}
+
+/**
+ * Get active orders (deposit confirmed, waiting for execution)
+ */
+export function getActiveOrders(): RelayOrder[] {
+  return Array.from(orders.values()).filter(o => o.status === 'pending');
 }

@@ -5,6 +5,7 @@ import { verifyRouter } from './routes/verify.js';
 import { poseidonRouter } from './routes/poseidon.js';
 import relayRouter from './routes/relay.js';
 import { getRelayWallet } from './services/wallet.js';
+import { startDepositMonitor } from './services/deposit-monitor.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,7 +55,18 @@ app.use(
 );
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Obsidian Prover service running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+
+  // Start deposit monitor if RPC URL is configured
+  const rpcUrl = process.env.SOLANA_RPC_URL;
+  if (rpcUrl) {
+    console.log('Starting deposit monitor...');
+    startDepositMonitor(rpcUrl).catch(err => {
+      console.error('Failed to start deposit monitor:', err);
+    });
+  } else {
+    console.log('SOLANA_RPC_URL not set - deposit monitoring disabled');
+  }
 });
