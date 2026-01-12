@@ -10,7 +10,13 @@ import {
   getAllBatches,
   getAllOrders,
   getReadyBatches,
+  activateOrder,
 } from '../services/batch.js';
+import {
+  getUnmatchedDeposits,
+  manualMatchDeposit,
+  refundUnmatchedDeposit,
+} from '../services/deposit-monitor.js';
 import { getRelayWallet, isWalletInitialized } from '../services/wallet.js';
 import { executeDFlowTrade, getMarketInfo, estimateShares } from '../services/dflow.js';
 import type { OrderSubmission } from '../types/relay.js';
@@ -426,6 +432,122 @@ router.get('/estimate', async (req: Request, res: Response) => {
     estimatedShares: estimate.shares,
     currentPrice: estimate.price,
     note: 'Actual fill may vary due to slippage and partial fills',
+  });
+});
+
+/**
+ * GET /relay/deposits/unmatched
+ * Get unmatched deposits (admin endpoint)
+ */
+router.get('/deposits/unmatched', (_req: Request, res: Response) => {
+  const deposits = getUnmatchedDeposits();
+  res.json({
+    success: true,
+    count: deposits.length,
+    deposits,
+  });
+});
+
+/**
+ * POST /relay/deposits/match
+ * Manually match a deposit to an order
+ */
+router.post('/deposits/match', async (req: Request, res: Response) => {
+  const { signature, orderId } = req.body;
+
+  if (!signature || !orderId) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing required fields: signature, orderId',
+    });
+    return;
+  }
+
+  const result = await manualMatchDeposit(signature, orderId);
+
+  if (!result.success) {
+    res.status(400).json({
+      success: false,
+      error: result.error,
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: `Deposit ${signature} matched to order ${orderId}`,
+  });
+});
+
+/**
+ * POST /relay/deposits/refund
+ * Refund an unmatched deposit
+ */
+router.post('/deposits/refund', async (req: Request, res: Response) => {
+  const { signature } = req.body;
+
+  if (!signature) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing required field: signature',
+    });
+    return;
+  }
+
+  const result = await refundUnmatchedDeposit(signature);
+
+  if (!result.success) {
+    res.status(400).json({
+      success: false,
+      error: result.error,
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: 'Deposit refunded',
+    txSignature: result.txSignature,
+  });
+});
+
+/**
+ * POST /relay/order/:orderId/activate
+ * Directly activate an order (admin endpoint, bypasses deposit detection)
+ */
+router.post('/order/:orderId/activate', async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  const { depositTxSignature, senderWallet } = req.body;
+
+  if (!depositTxSignature) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing required field: depositTxSignature',
+    });
+    return;
+  }
+
+  const result = await activateOrder(
+    orderId,
+    depositTxSignature,
+    senderWallet || 'admin-activated'
+  );
+
+  if (!result.success) {
+    res.status(400).json({
+      success: false,
+      error: result.error,
+    });
+    return;
+  }
+
+  // Get updated order
+  const order = getOrder(orderId);
+
+  res.json({
+    success: true,
+    message: `Order ${orderId} activated`,
+    order,
   });
 });
 

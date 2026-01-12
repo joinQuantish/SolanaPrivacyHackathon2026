@@ -318,27 +318,52 @@ export async function generateBatchProof(
   const commitmentHashes = batchOrders.map(o => o.commitmentHash);
   const tree = await buildMerkleTree(commitmentHashes, poseidonHash2);
 
-  // Prepare commitments for circuit
+  // Prepare commitments for circuit (include distribution for correct commitment hash)
   const commitments = batchOrders.map(order => ({
     marketId: order.marketId,
     side: order.side,
     usdcAmount: order.usdcAmount,
     destinationWallet: order.destinationWallet,
     salt: order.salt,
+    distribution: order.distribution,
   }));
 
-  // Prepare allocations for circuit
-  const allocations = distribution.allocations.map(a => ({
-    destinationWallet: a.destinationWallet,
-    sharesAmount: a.sharesAmount,
+  // Prepare allocations for circuit - one per order with distribution hash
+  // Each allocation must match the corresponding commitment's distribution
+  const allocations = await Promise.all(batchOrders.map(async (order) => {
+    // Find this order's total shares from distribution
+    const orderAllocation = distribution.allocations.find(a => a.orderId === order.id);
+    const sharesAmount = orderAllocation ? orderAllocation.sharesAmount : '0';
+
+    // Compute distribution hash to match commitment
+    let distributionHash: string;
+    if (order.distribution && order.distribution.length > 0) {
+      const { computeDistributionHash } = await import('./commitment.js');
+      distributionHash = await computeDistributionHash(order.distribution, poseidonHash2, poseidonHashN);
+    } else {
+      const { pubkeyToField } = await import('../utils/field.js');
+      distributionHash = pubkeyToField(order.destinationWallet);
+    }
+
+    return {
+      destinationWallet: order.destinationWallet, // Keep for backwards compat
+      sharesAmount,
+      distributionHash, // Add for circuit
+    };
   }));
 
   // Generate proof
+  // Use committed amounts for circuit verification (actual spend may differ due to slippage)
+  const totalCommittedForProof = batchOrders.reduce((sum, o) => sum + parseFloat(o.usdcAmount), 0).toString();
+
+  // Sum total shares from all allocations
+  const totalSharesForProof = allocations.reduce((sum, a) => sum + parseFloat(a.sharesAmount), 0).toString();
+
   const proofResult = await generateProof({
     batchId: batch.id,
     merkleRoot: tree.root,
-    totalUsdcIn: executionResult.usdcSpent,
-    totalSharesOut: executionResult.sharesReceived,
+    totalUsdcIn: totalCommittedForProof,
+    totalSharesOut: totalSharesForProof,
     marketId: batch.marketId,
     side: batch.side,
     commitments,

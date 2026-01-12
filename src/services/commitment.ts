@@ -69,19 +69,32 @@ export async function computeCommitmentHash(
 
 /**
  * Convert OrderCommitment to circuit format
+ * Note: This is async because it may need to compute distribution hash
  */
-export function commitmentToCircuitFormat(commitment: OrderCommitment): {
+export async function commitmentToCircuitFormat(
+  commitment: OrderCommitment,
+  poseidonHash2: (inputs: string[]) => Promise<string>,
+  poseidonHashN: (inputs: string[]) => Promise<string>
+): Promise<{
   market_id: string;
   side: string;
   usdc_amount: string;
-  destination_wallet: string;
+  distribution_hash: string;
   salt: string;
-} {
+}> {
+  let distributionHash: string;
+
+  if (commitment.distribution && commitment.distribution.length > 0) {
+    distributionHash = await computeDistributionHash(commitment.distribution, poseidonHash2, poseidonHashN);
+  } else {
+    distributionHash = pubkeyToField(commitment.destinationWallet);
+  }
+
   return {
     market_id: marketIdToField(commitment.marketId),
     side: sideToField(commitment.side),
     usdc_amount: usdcToField(commitment.usdcAmount),
-    destination_wallet: pubkeyToField(commitment.destinationWallet),
+    distribution_hash: distributionHash,
     salt: stringToField(commitment.salt),
   };
 }
@@ -93,14 +106,14 @@ export function zeroCommitment(): {
   market_id: string;
   side: string;
   usdc_amount: string;
-  destination_wallet: string;
+  distribution_hash: string;
   salt: string;
 } {
   return {
     market_id: '0',
     side: '0',
     usdc_amount: '0',
-    destination_wallet: '0',
+    distribution_hash: '0',
     salt: '0',
   };
 }

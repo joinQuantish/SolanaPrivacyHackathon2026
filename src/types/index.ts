@@ -26,6 +26,7 @@ export interface OrderCommitment {
 export interface ShareAllocation {
   destinationWallet: string;
   sharesAmount: string; // Field as decimal string
+  distributionHash?: string; // Hash of distribution plan (for circuit)
 }
 
 // Request to generate a proof
@@ -76,11 +77,11 @@ export interface CircuitInputs {
     market_id: string;
     side: string;
     usdc_amount: string;
-    destination_wallet: string;
+    distribution_hash: string;
     salt: string;
   }>;
   allocations: Array<{
-    destination_wallet: string;
+    distribution_hash: string;
     shares_amount: string;
   }>;
   merkle_paths: string[][];

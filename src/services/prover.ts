@@ -15,8 +15,8 @@ import {
   commitmentToCircuitFormat,
   zeroCommitment,
 } from './commitment.js';
-import { pubkeyToField, sideToField, decimalToField } from '../utils/field.js';
-import { poseidonHash2, poseidonHash5 } from './poseidon.js';
+import { pubkeyToField, sideToField, decimalToField, sharesToField, usdcToField, marketIdToField, stringToField } from '../utils/field.js';
+import { poseidonHash2, poseidonHash5, poseidonHashN } from './poseidon.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -80,7 +80,7 @@ export async function generateProof(request: ProveRequest): Promise<ProveRespons
     console.log(`Computing ${numOrders} commitment hashes...`);
     const commitmentHashes: string[] = [];
     for (const commitment of request.commitments) {
-      const hash = await computeCommitmentHash(commitment, poseidonHash5);
+      const hash = await computeCommitmentHash(commitment, poseidonHash5, poseidonHash2, poseidonHashN);
       commitmentHashes.push(hash);
     }
 
@@ -102,11 +102,11 @@ export async function generateProof(request: ProveRequest): Promise<ProveRespons
     // Step 4: Prepare circuit inputs
     console.log('Preparing circuit inputs...');
 
-    // Pad commitments to MAX_BATCH_SIZE
+    // Pad commitments to MAX_BATCH_SIZE (async because distribution hash computation)
     const paddedCommitments: Record<string, string>[] = [];
     for (let i = 0; i < 32; i++) {
       if (i < numOrders) {
-        paddedCommitments.push(commitmentToCircuitFormat(request.commitments[i]));
+        paddedCommitments.push(await commitmentToCircuitFormat(request.commitments[i], poseidonHash2, poseidonHashN));
       } else {
         paddedCommitments.push(zeroCommitment());
       }
@@ -116,13 +116,15 @@ export async function generateProof(request: ProveRequest): Promise<ProveRespons
     const paddedAllocations: Record<string, string>[] = [];
     for (let i = 0; i < 32; i++) {
       if (i < numOrders) {
+        // Use distributionHash if provided, otherwise compute from destinationWallet
+        const distHash = request.allocations[i].distributionHash || pubkeyToField(request.allocations[i].destinationWallet);
         paddedAllocations.push({
-          destination_wallet: pubkeyToField(request.allocations[i].destinationWallet),
-          shares_amount: decimalToField(request.allocations[i].sharesAmount),
+          distribution_hash: distHash,
+          shares_amount: sharesToField(request.allocations[i].sharesAmount),
         });
       } else {
         paddedAllocations.push({
-          destination_wallet: '0',
+          distribution_hash: '0',
           shares_amount: '0',
         });
       }
@@ -130,11 +132,11 @@ export async function generateProof(request: ProveRequest): Promise<ProveRespons
 
     const circuitInputs = {
       // Public inputs
-      batch_id: decimalToField(request.batchId),
+      batch_id: stringToField(request.batchId),
       merkle_root: tree.root,
-      total_usdc_in: decimalToField(request.totalUsdcIn),
-      total_shares_out: decimalToField(request.totalSharesOut),
-      market_id: decimalToField(request.marketId),
+      total_usdc_in: usdcToField(request.totalUsdcIn),
+      total_shares_out: sharesToField(request.totalSharesOut),
+      market_id: marketIdToField(request.marketId),
       side: sideToField(request.side),
 
       // Private inputs

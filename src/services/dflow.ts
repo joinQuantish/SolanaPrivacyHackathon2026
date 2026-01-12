@@ -1,32 +1,31 @@
 /**
  * DFlow/Kalshi Integration Service
  *
- * This service handles interaction with Kalshi prediction markets via DFlow.
- * In production, this would integrate with the actual DFlow API.
- *
- * For the hackathon, we provide:
- * 1. A mock implementation for testing
- * 2. Hooks for real DFlow integration
+ * Real integration with DFlow API for Kalshi prediction markets.
+ * NO MOCKS - all functions call real APIs.
  */
 
+import {
+  Connection,
+  Transaction,
+  VersionedTransaction,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js';
 import type { RelayBatch, DFlowExecutionResult } from '../types/relay.js';
+import { getRelayWallet } from './wallet.js';
 
-// DFlow API configuration
-const DFLOW_API_URL = process.env.DFLOW_API_URL || 'https://api.dflow.net';
+// DFlow API endpoints
+const DFLOW_METADATA_API = 'https://api.dflow.net/api/v1';
+const DFLOW_QUOTE_API = 'https://quote-api.dflow.net';
+
+// API key from environment (required for trading)
 const DFLOW_API_KEY = process.env.DFLOW_API_KEY || '';
 
-// SOL needed for market initialization (approx)
-const MARKET_INIT_SOL_COST = 0.01; // ~0.01 SOL for rent
+// USDC mint on Solana mainnet
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
-/**
- * Market initialization status
- */
-export interface MarketInitStatus {
-  initialized: boolean;
-  yesMintInitialized: boolean;
-  noMintInitialized: boolean;
-  initCostSol?: number;
-}
+// RPC endpoint
+const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 /**
  * Market info from Kalshi/DFlow
@@ -39,26 +38,191 @@ export interface MarketInfo {
   yesTokenMint: string;
   noTokenMint: string;
   status: 'active' | 'inactive' | 'finalized';
+  isInitialized: boolean;
 }
 
 /**
- * Get market info from Kalshi
+ * Market initialization status
+ */
+export interface MarketInitStatus {
+  initialized: boolean;
+  yesMintInitialized: boolean;
+  noMintInitialized: boolean;
+  initCostSol?: number;
+}
+
+/**
+ * DFlow quote response
+ */
+interface DFlowQuote {
+  inputMint: string;
+  inAmount: string;
+  outputMint: string;
+  outAmount: string;
+  minOutAmount: string;
+  otherAmountThreshold: string;
+  slippageBps: number;
+  priceImpactPct: string;
+  contextSlot: number;
+  routePlan?: unknown[];
+}
+
+/**
+ * DFlow swap response
+ */
+interface DFlowSwapResponse {
+  swapTransaction: string;
+  lastValidBlockHeight: number;
+  prioritizationFeeLamports: number;
+  computeUnitLimit: number;
+}
+
+/**
+ * Get market info from DFlow API
  */
 export async function getMarketInfo(marketId: string): Promise<MarketInfo | null> {
-  // In production, call Kalshi API
-  // For now, return mock data
-  console.log(`Getting market info for ${marketId}`);
+  console.log(`[DFlow] Fetching market info for ${marketId}...`);
 
-  // Mock market data
-  return {
-    ticker: marketId,
-    title: `Market ${marketId}`,
-    yesPrice: 0.65,
-    noPrice: 0.35,
-    yesTokenMint: 'YESTokenMint11111111111111111111111111111111',
-    noTokenMint: 'NOTokenMint111111111111111111111111111111111',
-    status: 'active',
+  try {
+    const response = await fetch(`${DFLOW_METADATA_API}/market/${marketId}`);
+
+    if (!response.ok) {
+      console.error(`[DFlow] Market fetch failed: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const market = data.market || data;
+
+    if (!market) {
+      console.error(`[DFlow] No market data returned`);
+      return null;
+    }
+
+    // Extract USDC token mints (use USDC settlement, not CASH)
+    const usdcAccounts = market.accounts?.[USDC_MINT];
+    if (!usdcAccounts) {
+      console.error(`[DFlow] No USDC accounts for market`);
+      return null;
+    }
+
+    const yesPrice = parseFloat(market.yesAsk || market.yesBid || '0.5');
+    const noPrice = parseFloat(market.noAsk || market.noBid || '0.5');
+
+    console.log(`[DFlow] Market: ${market.title}`);
+    console.log(`[DFlow] YES price: $${yesPrice}, NO price: $${noPrice}`);
+    console.log(`[DFlow] YES mint: ${usdcAccounts.yesMint}`);
+    console.log(`[DFlow] NO mint: ${usdcAccounts.noMint}`);
+
+    return {
+      ticker: market.ticker,
+      title: market.title,
+      yesPrice,
+      noPrice,
+      yesTokenMint: usdcAccounts.yesMint,
+      noTokenMint: usdcAccounts.noMint,
+      status: market.status as 'active' | 'inactive' | 'finalized',
+      isInitialized: usdcAccounts.isInitialized || false,
+    };
+  } catch (error) {
+    console.error(`[DFlow] Error fetching market:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get a quote from DFlow for swapping USDC to prediction tokens
+ */
+async function getQuote(
+  inputMint: string,
+  outputMint: string,
+  amount: number,
+  slippageBps: number = 200
+): Promise<DFlowQuote | null> {
+  console.log(`[DFlow] Getting quote: ${amount} USDC -> ${outputMint.slice(0, 8)}...`);
+
+  // Convert to smallest units (USDC has 6 decimals)
+  const amountScaled = Math.floor(amount * 1e6);
+
+  const params = new URLSearchParams({
+    inputMint,
+    outputMint,
+    amount: amountScaled.toString(),
+    slippageBps: slippageBps.toString(),
+  });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
   };
+
+  if (DFLOW_API_KEY) {
+    headers['x-api-key'] = DFLOW_API_KEY;
+  }
+
+  try {
+    const response = await fetch(`${DFLOW_QUOTE_API}/quote?${params}`, { headers });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[DFlow] Quote failed: ${response.status} - ${errorText}`);
+      return null;
+    }
+
+    const quote = await response.json();
+    console.log(`[DFlow] Quote received: ${quote.outAmount} tokens for ${quote.inAmount} USDC`);
+    console.log(`[DFlow] Price impact: ${quote.priceImpactPct}%`);
+
+    return quote;
+  } catch (error) {
+    console.error(`[DFlow] Error getting quote:`, error);
+    return null;
+  }
+}
+
+/**
+ * Create a swap transaction from DFlow
+ */
+async function createSwap(
+  quote: DFlowQuote,
+  userPublicKey: string
+): Promise<DFlowSwapResponse | null> {
+  console.log(`[DFlow] Creating swap transaction...`);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (DFLOW_API_KEY) {
+    headers['x-api-key'] = DFLOW_API_KEY;
+  }
+
+  try {
+    const response = await fetch(`${DFLOW_QUOTE_API}/swap`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        quoteResponse: quote,
+        userPublicKey,
+        prioritizationFeeLamports: 'auto',
+        dynamicComputeUnitLimit: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[DFlow] Swap creation failed: ${response.status} - ${errorText}`);
+      return null;
+    }
+
+    const swapResponse = await response.json();
+    console.log(`[DFlow] Swap transaction created`);
+    console.log(`[DFlow] Priority fee: ${swapResponse.prioritizationFeeLamports} lamports`);
+
+    return swapResponse;
+  } catch (error) {
+    console.error(`[DFlow] Error creating swap:`, error);
+    return null;
+  }
 }
 
 /**
@@ -68,12 +232,14 @@ export async function getMarketInfo(marketId: string): Promise<MarketInfo | null
  * It takes a batch of orders and executes them as a single trade.
  */
 export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecutionResult> {
-  console.log(`Executing DFlow trade for batch ${batch.id}`);
-  console.log(`  Market: ${batch.marketId}`);
-  console.log(`  Side: ${batch.side}`);
-  console.log(`  Total USDC: ${batch.totalUsdcCommitted}`);
+  console.log(`\n========================================`);
+  console.log(`[DFlow] Executing REAL trade for batch ${batch.id}`);
+  console.log(`[DFlow] Market: ${batch.marketId}`);
+  console.log(`[DFlow] Side: ${batch.side}`);
+  console.log(`[DFlow] Total USDC: ${batch.totalUsdcCommitted}`);
+  console.log(`========================================\n`);
 
-  // Get market info
+  // Step 1: Get market info
   const market = await getMarketInfo(batch.marketId);
   if (!market) {
     return {
@@ -84,7 +250,7 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: 'Market not found',
+      error: `Market ${batch.marketId} not found`,
     };
   }
 
@@ -97,18 +263,110 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: `Market is ${market.status}`,
+      error: `Market is ${market.status}, not active`,
     };
   }
 
-  // Check if market is initialized
-  const initStatus = await checkMarketInitialization(batch.marketId, batch.side);
-  if (!initStatus.initialized) {
-    console.log(`  Market not initialized, initializing...`);
-    console.log(`  Init cost: ${initStatus.initCostSol} SOL`);
+  // Determine token mint based on side
+  const outputMint = batch.side === 'YES' ? market.yesTokenMint : market.noTokenMint;
+  const totalUsdc = parseFloat(batch.totalUsdcCommitted);
 
-    const initResult = await initializeMarket(batch.marketId, batch.side);
-    if (!initResult.success) {
+  console.log(`[DFlow] Output mint: ${outputMint}`);
+
+  // Step 2: Get relay wallet
+  const wallet = await getRelayWallet();
+  const walletAddress = wallet.getAddress();
+  console.log(`[DFlow] Relay wallet: ${walletAddress}`);
+
+  // Check wallet balance
+  const walletInfo = await wallet.getInfo();
+  if (walletInfo.usdcBalance < totalUsdc) {
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: `Insufficient USDC balance: have ${walletInfo.usdcBalance}, need ${totalUsdc}`,
+    };
+  }
+
+  console.log(`[DFlow] Wallet USDC balance: $${walletInfo.usdcBalance}`);
+
+  // Step 3: Get quote from DFlow
+  const quote = await getQuote(USDC_MINT, outputMint, totalUsdc);
+  if (!quote) {
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: 'Failed to get quote from DFlow',
+    };
+  }
+
+  // Step 4: Create swap transaction
+  const swapResponse = await createSwap(quote, walletAddress);
+  if (!swapResponse) {
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: 'Failed to create swap transaction',
+    };
+  }
+
+  // Step 5: Sign and send transaction
+  console.log(`[DFlow] Signing and sending transaction...`);
+
+  try {
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+
+    // Decode the transaction
+    const txBuffer = Buffer.from(swapResponse.swapTransaction, 'base64');
+
+    let signature: string;
+
+    // Try as versioned transaction first
+    try {
+      const versionedTx = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
+      console.log(`[DFlow] Transaction type: Versioned`);
+
+      // Sign the versioned transaction
+      const signedTx = wallet.signVersionedTransaction(versionedTx);
+      signature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+    } catch (versionedError) {
+      console.log(`[DFlow] Trying legacy transaction format...`);
+      // Fallback to legacy transaction
+      const legacyTx = Transaction.from(txBuffer);
+      legacyTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      const signedTx = wallet.signTransaction(legacyTx);
+      signature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+    }
+
+    console.log(`[DFlow] Transaction sent: ${signature}`);
+
+    // Wait for confirmation
+    console.log(`[DFlow] Waiting for confirmation...`);
+    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+
+    if (confirmation.value.err) {
+      console.error(`[DFlow] Transaction failed:`, confirmation.value.err);
       return {
         success: false,
         usdcSpent: '0',
@@ -117,107 +375,56 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
         fillPercentage: 0,
         partialFill: false,
         shareTokenMint: '',
-        error: `Failed to initialize market: ${initResult.error}`,
+        error: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
       };
     }
-    console.log(`  Market initialized: ${initResult.txSignature}`);
+
+    console.log(`[DFlow] Transaction confirmed!`);
+
+    // Calculate results
+    const usdcSpent = parseFloat(quote.inAmount) / 1e6;
+    const sharesReceived = parseFloat(quote.outAmount) / 1e6; // Assuming 6 decimals
+    const avgPrice = usdcSpent / sharesReceived;
+
+    console.log(`[DFlow] USDC spent: $${usdcSpent}`);
+    console.log(`[DFlow] Shares received: ${sharesReceived}`);
+    console.log(`[DFlow] Average price: $${avgPrice.toFixed(4)}`);
+
+    return {
+      success: true,
+      orderId: `dflow-${batch.id}-${Date.now()}`,
+      txSignature: signature,
+      usdcSpent: usdcSpent.toString(),
+      sharesReceived: sharesReceived.toString(),
+      averagePrice: avgPrice.toString(),
+      fillPercentage: 100,
+      partialFill: false,
+      shareTokenMint: outputMint,
+    };
+  } catch (error) {
+    console.error(`[DFlow] Transaction error:`, error);
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: error instanceof Error ? error.message : 'Transaction failed',
+    };
   }
-
-  // Determine token mint based on side
-  const shareTokenMint = batch.side === 'YES' ? market.yesTokenMint : market.noTokenMint;
-  const price = batch.side === 'YES' ? market.yesPrice : market.noPrice;
-
-  // Calculate expected shares at current price
-  const totalUsdc = parseFloat(batch.totalUsdcCommitted);
-  const expectedShares = totalUsdc / price;
-
-  // Simulate slippage (0-2%)
-  const slippage = Math.random() * 0.02;
-  const actualShares = expectedShares * (1 - slippage);
-
-  // Simulate partial fill (90-100% fill rate)
-  const fillRate = 0.9 + Math.random() * 0.1;
-  const actualUsdcSpent = totalUsdc * fillRate;
-  const finalShares = actualShares * fillRate;
-  const avgPrice = actualUsdcSpent / finalShares;
-
-  // In production, this would:
-  // 1. Call DFlow API to place the trade
-  // 2. Wait for execution
-  // 3. Return actual fill results
-
-  console.log(`  Expected shares: ${expectedShares.toFixed(2)}`);
-  console.log(`  Actual shares: ${finalShares.toFixed(2)} (${(fillRate * 100).toFixed(1)}% fill)`);
-  console.log(`  Avg price: $${avgPrice.toFixed(4)}`);
-
-  return {
-    success: true,
-    orderId: `dflow-${batch.id}-${Date.now()}`,
-    txSignature: `mock-tx-${Date.now()}`,
-    usdcSpent: actualUsdcSpent.toFixed(6),
-    sharesReceived: finalShares.toFixed(6),
-    averagePrice: avgPrice.toFixed(6),
-    fillPercentage: fillRate * 100,
-    partialFill: fillRate < 1,
-    shareTokenMint,
-  };
-}
-
-/**
- * Real DFlow integration (placeholder)
- *
- * When ready to integrate with real DFlow:
- * 1. Set DFLOW_API_URL and DFLOW_API_KEY env vars
- * 2. Implement this function with actual API calls
- */
-export async function executeDFlowTradeReal(batch: RelayBatch): Promise<DFlowExecutionResult> {
-  if (!DFLOW_API_KEY) {
-    console.warn('DFLOW_API_KEY not set, using mock implementation');
-    return executeDFlowTrade(batch);
-  }
-
-  // TODO: Implement real DFlow API integration
-  // const response = await fetch(`${DFLOW_API_URL}/v1/trade`, {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${DFLOW_API_KEY}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     market_id: batch.marketId,
-  //     side: batch.side.toLowerCase(),
-  //     amount_usdc: batch.totalUsdcCommitted,
-  //   }),
-  // });
-  //
-  // const result = await response.json();
-  // return {
-  //   success: result.status === 'filled',
-  //   orderId: result.order_id,
-  //   txSignature: result.tx_signature,
-  //   usdcSpent: result.usdc_spent,
-  //   sharesReceived: result.shares_received,
-  //   averagePrice: result.average_price,
-  //   fillPercentage: result.fill_percentage,
-  //   partialFill: result.fill_percentage < 100,
-  //   shareTokenMint: result.share_token_mint,
-  // };
-
-  return executeDFlowTrade(batch);
 }
 
 /**
  * Check if a market is initialized on-chain
- * Uninitialized markets require SOL to create the token accounts
  */
 export async function checkMarketInitialization(
   marketId: string,
   side: 'YES' | 'NO'
 ): Promise<MarketInitStatus> {
-  // In production, this would call the Kalshi API or check on-chain
-  // For mock: randomly decide if initialized (80% chance)
-
   const market = await getMarketInfo(marketId);
+
   if (!market) {
     return {
       initialized: false,
@@ -226,35 +433,43 @@ export async function checkMarketInitialization(
     };
   }
 
-  // Mock: most markets are initialized
-  const isInitialized = Math.random() > 0.2;
-
   return {
-    initialized: isInitialized,
-    yesMintInitialized: isInitialized || side !== 'YES',
-    noMintInitialized: isInitialized || side !== 'NO',
-    initCostSol: isInitialized ? 0 : MARKET_INIT_SOL_COST,
+    initialized: market.isInitialized,
+    yesMintInitialized: market.isInitialized,
+    noMintInitialized: market.isInitialized,
+    initCostSol: market.isInitialized ? 0 : 0.01,
   };
 }
 
 /**
- * Initialize a market on-chain (costs SOL)
+ * Initialize a market on-chain (if needed)
+ * This would use the Kalshi initialization API
  */
 export async function initializeMarket(
   marketId: string,
   side: 'YES' | 'NO'
 ): Promise<{ success: boolean; txSignature?: string; error?: string }> {
-  console.log(`Initializing market ${marketId} ${side} side...`);
+  console.log(`[DFlow] Checking if market ${marketId} needs initialization...`);
 
-  // In production, this would:
-  // 1. Call Kalshi API to initialize the market
-  // 2. Pay the SOL rent fee
-  // 3. Return transaction signature
+  const market = await getMarketInfo(marketId);
+  if (!market) {
+    return { success: false, error: 'Market not found' };
+  }
 
-  // Mock: always succeed
+  if (market.isInitialized) {
+    console.log(`[DFlow] Market already initialized`);
+    return { success: true };
+  }
+
+  // For initialization, we need to use the Kalshi initialization endpoint
+  // This typically requires SOL for rent
+  console.log(`[DFlow] Market needs initialization - this requires SOL for rent`);
+
+  // TODO: Implement actual initialization via Kalshi API
+  // For now, return error to indicate this needs to be done
   return {
-    success: true,
-    txSignature: `init-${marketId}-${side}-${Date.now()}`,
+    success: false,
+    error: 'Market not initialized. Please initialize via Kalshi first.',
   };
 }
 
@@ -263,7 +478,7 @@ export async function initializeMarket(
  */
 export async function canTrade(marketId: string): Promise<boolean> {
   const market = await getMarketInfo(marketId);
-  return market?.status === 'active';
+  return market?.status === 'active' && market?.isInitialized === true;
 }
 
 /**
@@ -286,9 +501,21 @@ export async function estimateShares(
   side: 'YES' | 'NO',
   usdcAmount: number
 ): Promise<{ shares: number; price: number } | null> {
-  const price = await getCurrentPrice(marketId, side);
-  if (!price) return null;
+  const market = await getMarketInfo(marketId);
+  if (!market) return null;
 
-  const shares = usdcAmount / price;
+  const outputMint = side === 'YES' ? market.yesTokenMint : market.noTokenMint;
+
+  // Get real quote from DFlow
+  const quote = await getQuote(USDC_MINT, outputMint, usdcAmount);
+  if (!quote) {
+    // Fallback to simple estimate
+    const price = side === 'YES' ? market.yesPrice : market.noPrice;
+    return { shares: usdcAmount / price, price };
+  }
+
+  const shares = parseFloat(quote.outAmount) / 1e6;
+  const price = usdcAmount / shares;
+
   return { shares, price };
 }

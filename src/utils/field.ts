@@ -58,6 +58,15 @@ export function usdcToField(amount: number | string): string {
 }
 
 /**
+ * Convert shares amount (with 6 decimals) to integer field
+ */
+export function sharesToField(amount: number | string): string {
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  const intValue = BigInt(Math.floor(value * 1e6));
+  return intValue.toString();
+}
+
+/**
  * Convert side enum to field (0 = NO, 1 = YES)
  */
 export function sideToField(side: 'YES' | 'NO'): string {

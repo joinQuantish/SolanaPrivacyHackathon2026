@@ -10,13 +10,13 @@ struct OrderCommitment {
     market_id: Field,
     side: Field,              // 0 = NO, 1 = YES
     usdc_amount: Field,       // In smallest units (6 decimals)
-    destination_wallet: Field, // Solana pubkey as field
+    distribution_hash: Field, // Hash of wallet distribution plan
     salt: Field,
 }
 
 // Share allocation result
 struct ShareAllocation {
-    destination_wallet: Field,
+    distribution_hash: Field, // Must match commitment's distribution_hash
     shares_amount: Field,
 }
 
@@ -60,7 +60,7 @@ fn main(
                 commitment.market_id,
                 commitment.side,
                 commitment.usdc_amount,
-                commitment.destination_wallet,
+                commitment.distribution_hash,
                 commitment.salt,
             ]);
 
@@ -81,9 +81,9 @@ fn main(
             assert(commitment.side == side);
 
             // ============================================
-            // CONSTRAINT 4: Verify destination matches allocation
+            // CONSTRAINT 4: Verify distribution matches allocation
             // ============================================
-            assert(commitment.destination_wallet == allocation.destination_wallet);
+            assert(commitment.distribution_hash == allocation.distribution_hash);
 
             // ============================================
             // CONSTRAINT 5: Verify proportional allocation
@@ -155,12 +155,12 @@ fn test_single_order() {
         market_id: 1,
         side: 1, // YES
         usdc_amount: 1000000, // $1
-        destination_wallet: 12345,
+        distribution_hash: 12345, // Hash of distribution plan
         salt: 999,
     };
 
     let allocation = ShareAllocation {
-        destination_wallet: 12345,
+        distribution_hash: 12345,
         shares_amount: 100,
     };
 
@@ -169,7 +169,7 @@ fn test_single_order() {
         commitment.market_id,
         commitment.side,
         commitment.usdc_amount,
-        commitment.destination_wallet,
+        commitment.distribution_hash,
         commitment.salt,
     ]);
 
@@ -184,13 +184,13 @@ fn test_single_order() {
         market_id: 0,
         side: 0,
         usdc_amount: 0,
-        destination_wallet: 0,
+        distribution_hash: 0,
         salt: 0,
     }; MAX_BATCH_SIZE];
     commitments[0] = commitment;
 
     let mut allocations: [ShareAllocation; MAX_BATCH_SIZE] = [ShareAllocation {
-        destination_wallet: 0,
+        distribution_hash: 0,
         shares_amount: 0,
     }; MAX_BATCH_SIZE];
     allocations[0] = allocation;

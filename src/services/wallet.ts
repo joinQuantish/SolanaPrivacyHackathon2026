@@ -3,6 +3,7 @@ import {
   Keypair,
   PublicKey,
   Transaction,
+  VersionedTransaction,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
@@ -10,7 +11,10 @@ import {
   getAssociatedTokenAddress,
   getAccount,
   createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+  getMint,
 } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { readFile, writeFile } from 'fs/promises';
@@ -190,6 +194,7 @@ export class RelayWallet {
 
   /**
    * Transfer SPL token (for share distribution)
+   * Supports both regular SPL tokens and Token-2022 (prediction market tokens)
    */
   async transferToken(
     tokenMint: string,
@@ -202,9 +207,52 @@ export class RelayWallet {
       const recipientPubkey = new PublicKey(recipient);
       const amountInSmallestUnit = BigInt(Math.floor(amount * Math.pow(10, decimals)));
 
-      // Get ATAs
-      const senderAta = await getAssociatedTokenAddress(mintPubkey, this.keypair.publicKey);
-      const recipientAta = await getAssociatedTokenAddress(mintPubkey, recipientPubkey);
+      // Detect if this is Token-2022 or regular SPL token
+      let programId = TOKEN_PROGRAM_ID;
+      try {
+        // Try to get mint info - will throw if using wrong program
+        await getMint(this.connection, mintPubkey, 'confirmed', TOKEN_PROGRAM_ID);
+      } catch {
+        // Try Token-2022
+        try {
+          await getMint(this.connection, mintPubkey, 'confirmed', TOKEN_2022_PROGRAM_ID);
+          programId = TOKEN_2022_PROGRAM_ID;
+          console.log(`Using Token-2022 program for mint ${tokenMint}`);
+        } catch {
+          throw new Error(`Could not find mint ${tokenMint} on either token program`);
+        }
+      }
+
+      // Get ATAs with correct program
+      const senderAta = await getAssociatedTokenAddress(
+        mintPubkey,
+        this.keypair.publicKey,
+        false,
+        programId
+      );
+      const recipientAta = await getAssociatedTokenAddress(
+        mintPubkey,
+        recipientPubkey,
+        false,
+        programId
+      );
+
+      const transaction = new Transaction();
+
+      // Check if recipient ATA exists, create if needed
+      try {
+        await getAccount(this.connection, recipientAta, 'confirmed', programId);
+      } catch {
+        console.log(`Creating ATA for recipient ${recipient}`);
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          this.keypair.publicKey,
+          recipientAta,
+          recipientPubkey,
+          mintPubkey,
+          programId
+        );
+        transaction.add(createAtaIx);
+      }
 
       // Create transfer instruction
       const transferIx = createTransferInstruction(
@@ -213,11 +261,11 @@ export class RelayWallet {
         this.keypair.publicKey,
         amountInSmallestUnit,
         [],
-        TOKEN_PROGRAM_ID
+        programId
       );
+      transaction.add(transferIx);
 
       // Build and send transaction
-      const transaction = new Transaction().add(transferIx);
       const signature = await sendAndConfirmTransaction(
         this.connection,
         transaction,
@@ -234,11 +282,26 @@ export class RelayWallet {
   }
 
   /**
-   * Sign a transaction (for DFlow integration)
+   * Sign a legacy transaction (for DFlow integration)
    */
   signTransaction(transaction: Transaction): Transaction {
     transaction.sign(this.keypair);
     return transaction;
+  }
+
+  /**
+   * Sign a versioned transaction
+   */
+  signVersionedTransaction(transaction: VersionedTransaction): VersionedTransaction {
+    transaction.sign([this.keypair]);
+    return transaction;
+  }
+
+  /**
+   * Get keypair for direct signing (use with caution)
+   */
+  getKeypair(): Keypair {
+    return this.keypair;
   }
 
   /**
