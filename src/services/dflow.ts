@@ -14,9 +14,26 @@ import {
 import type { RelayBatch, DFlowExecutionResult } from '../types/relay.js';
 import { getRelayWallet } from './wallet.js';
 
-// DFlow API endpoints
-const DFLOW_METADATA_API = 'https://api.dflow.net/api/v1';
+// API endpoints
+const KALSHI_API = 'https://api.elections.kalshi.com/trade-api/v2';
 const DFLOW_QUOTE_API = 'https://quote-api.dflow.net';
+
+// Known token mints for popular markets (USDC settlement)
+// These are cached to avoid needing DFlow metadata API
+const KNOWN_TOKEN_MINTS: Record<string, { yesMint: string; noMint: string }> = {
+  'KXSB-26-BUF': {
+    yesMint: '6kFSnPEBFdpSrUi9KsiFg2w3W5Yj2fBcngUHsVA9ZSJd',
+    noMint: '2Bdt3J34TtSCmpsSf2Ke9TfbxHEdDacBbNkigVhy9wQH',
+  },
+  'KXSB-26-DEN': {
+    yesMint: '8DDZQdeUMB1dzsPb5jGvFJ1bJU5mQbN3hph8C96gZPZ6',
+    noMint: 'DS9kp4EedXUkTxTbAnJ5dD8PZPvi9uwQ3awoWCjsEiAF',
+  },
+  'KXSB-26-SEA': {
+    yesMint: 'GNr3UXmnwokHCBwpe2QWC9qr3M8v3mTjoAUQj6TVTbyP',
+    noMint: '5jvnRRxgPQzrEA9vBiCzD9oN3zhAUn8zEhbMSsEgqJC8',
+  },
+};
 
 // API key from environment (required for trading)
 const DFLOW_API_KEY = process.env.DFLOW_API_KEY || '';
@@ -78,54 +95,59 @@ interface DFlowSwapResponse {
 }
 
 /**
- * Get market info from DFlow API
+ * Get market info from Kalshi API with cached token mints
  */
 export async function getMarketInfo(marketId: string): Promise<MarketInfo | null> {
-  console.log(`[DFlow] Fetching market info for ${marketId}...`);
+  console.log(`[Kalshi] Fetching market info for ${marketId}...`);
 
   try {
-    const response = await fetch(`${DFLOW_METADATA_API}/market/${marketId}`);
+    // Fetch from Kalshi API
+    const response = await fetch(`${KALSHI_API}/markets/${marketId}`);
 
     if (!response.ok) {
-      console.error(`[DFlow] Market fetch failed: ${response.status}`);
+      console.error(`[Kalshi] Market fetch failed: ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    const market = data.market || data;
+    const market = data.market;
 
     if (!market) {
-      console.error(`[DFlow] No market data returned`);
+      console.error(`[Kalshi] No market data returned`);
       return null;
     }
 
-    // Extract USDC token mints (use USDC settlement, not CASH)
-    const usdcAccounts = market.accounts?.[USDC_MINT];
-    if (!usdcAccounts) {
-      console.error(`[DFlow] No USDC accounts for market`);
-      return null;
+    // Get token mints from cache or use provided mints
+    const tokenMints = KNOWN_TOKEN_MINTS[marketId];
+    if (!tokenMints) {
+      console.warn(`[Kalshi] No cached token mints for ${marketId}`);
+      console.warn(`[Kalshi] Add token mints to KNOWN_TOKEN_MINTS or provide via order`);
     }
 
-    const yesPrice = parseFloat(market.yesAsk || market.yesBid || '0.5');
-    const noPrice = parseFloat(market.noAsk || market.noBid || '0.5');
+    const yesPrice = parseFloat(market.yes_ask_dollars || market.yes_bid_dollars || '0.50');
+    const noPrice = parseFloat(market.no_ask_dollars || market.no_bid_dollars || '0.50');
 
-    console.log(`[DFlow] Market: ${market.title}`);
-    console.log(`[DFlow] YES price: $${yesPrice}, NO price: $${noPrice}`);
-    console.log(`[DFlow] YES mint: ${usdcAccounts.yesMint}`);
-    console.log(`[DFlow] NO mint: ${usdcAccounts.noMint}`);
+    console.log(`[Kalshi] Market: ${market.subtitle || marketId}`);
+    console.log(`[Kalshi] YES price: $${yesPrice}, NO price: $${noPrice}`);
+    console.log(`[Kalshi] Status: ${market.status}`);
+
+    if (tokenMints) {
+      console.log(`[Kalshi] YES mint: ${tokenMints.yesMint}`);
+      console.log(`[Kalshi] NO mint: ${tokenMints.noMint}`);
+    }
 
     return {
-      ticker: market.ticker,
-      title: market.title,
+      ticker: market.ticker || marketId,
+      title: market.subtitle || `Market ${marketId}`,
       yesPrice,
       noPrice,
-      yesTokenMint: usdcAccounts.yesMint,
-      noTokenMint: usdcAccounts.noMint,
+      yesTokenMint: tokenMints?.yesMint || '',
+      noTokenMint: tokenMints?.noMint || '',
       status: market.status as 'active' | 'inactive' | 'finalized',
-      isInitialized: usdcAccounts.isInitialized || false,
+      isInitialized: true, // Assume initialized for known markets
     };
   } catch (error) {
-    console.error(`[DFlow] Error fetching market:`, error);
+    console.error(`[Kalshi] Error fetching market:`, error);
     return null;
   }
 }
@@ -270,6 +292,19 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
   // Determine token mint based on side
   const outputMint = batch.side === 'YES' ? market.yesTokenMint : market.noTokenMint;
   const totalUsdc = parseFloat(batch.totalUsdcCommitted);
+
+  if (!outputMint) {
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: `No token mint found for ${batch.marketId} ${batch.side}. Add to KNOWN_TOKEN_MINTS in dflow.ts`,
+    };
+  }
 
   console.log(`[DFlow] Output mint: ${outputMint}`);
 
