@@ -1,14 +1,25 @@
 // Maximum batch size - must match circuit constant
 export const MAX_BATCH_SIZE = 32;
 export const MERKLE_DEPTH = 5; // log2(32) = 5
+export const MAX_DISTRIBUTION_DESTINATIONS = 10;
+
+// Distribution destination for multi-wallet support
+export interface DistributionEntry {
+  wallet: string;       // Solana pubkey
+  percentage: number;   // Basis points (100 = 1%, 10000 = 100%)
+}
 
 // Order commitment structure (matches Noir struct)
+// Note: For circuit, we use distributionHash which is hash of distribution array
 export interface OrderCommitment {
   marketId: string;
   side: 'YES' | 'NO';
   usdcAmount: string; // Field as decimal string (6 decimals stored as integer)
-  destinationWallet: string; // Solana pubkey
+  destinationWallet: string; // Primary wallet (first in distribution or legacy)
   salt: string; // 256-bit hex string
+
+  // Multi-wallet distribution (optional, for relay tracking)
+  distribution?: DistributionEntry[];
 }
 
 // Share allocation result

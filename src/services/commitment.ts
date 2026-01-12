@@ -1,20 +1,67 @@
-import type { OrderCommitment } from '../types/index.js';
-import { pubkeyToField, sideToField, decimalToField, hexToField } from '../utils/field.js';
+import type { OrderCommitment, DistributionEntry } from '../types/index.js';
+import { pubkeyToField, sideToField, decimalToField, hexToField, marketIdToField, stringToField } from '../utils/field.js';
+
+/**
+ * Compute hash of a distribution array
+ * Each entry is hashed as Poseidon(wallet, percentage), then all hashes are combined
+ */
+export async function computeDistributionHash(
+  distribution: DistributionEntry[],
+  poseidonHash2: (inputs: string[]) => Promise<string>,
+  poseidonHashN: (inputs: string[]) => Promise<string>
+): Promise<string> {
+  if (!distribution || distribution.length === 0) {
+    return '0'; // Empty distribution = zero hash
+  }
+
+  // Hash each entry: H(wallet, percentage)
+  const entryHashes: string[] = [];
+  for (const entry of distribution) {
+    const hash = await poseidonHash2([
+      pubkeyToField(entry.wallet),
+      entry.percentage.toString(),
+    ]);
+    entryHashes.push(hash);
+  }
+
+  // Pad to 10 entries with zeros for consistent hashing
+  while (entryHashes.length < 10) {
+    entryHashes.push('0');
+  }
+
+  // Hash all entry hashes together
+  return poseidonHashN(entryHashes);
+}
 
 /**
  * Compute commitment hash using Poseidon
- * Hash = Poseidon(marketId, side, usdcAmount, destinationWallet, salt)
+ * Hash = Poseidon(marketId, side, usdcAmount, distributionHash, salt)
+ *
+ * The distributionHash commits to how shares will be distributed across wallets.
+ * For backwards compatibility, if no distribution is provided, we use destinationWallet directly.
  */
 export async function computeCommitmentHash(
   commitment: OrderCommitment,
-  poseidonHash5: (inputs: string[]) => Promise<string>
+  poseidonHash5: (inputs: string[]) => Promise<string>,
+  poseidonHash2?: (inputs: string[]) => Promise<string>,
+  poseidonHashN?: (inputs: string[]) => Promise<string>
 ): Promise<string> {
+  let distributionField: string;
+
+  // If distribution is provided and we have the hash functions, use distribution hash
+  if (commitment.distribution && commitment.distribution.length > 0 && poseidonHash2 && poseidonHashN) {
+    distributionField = await computeDistributionHash(commitment.distribution, poseidonHash2, poseidonHashN);
+  } else {
+    // Fallback to single destination wallet (backwards compatible)
+    distributionField = pubkeyToField(commitment.destinationWallet);
+  }
+
   const inputs = [
-    decimalToField(commitment.marketId),
+    marketIdToField(commitment.marketId),
     sideToField(commitment.side),
     decimalToField(commitment.usdcAmount),
-    pubkeyToField(commitment.destinationWallet),
-    hexToField(commitment.salt),
+    distributionField,
+    stringToField(commitment.salt), // Salt can be any string now
   ];
 
   return poseidonHash5(inputs);
@@ -31,11 +78,11 @@ export function commitmentToCircuitFormat(commitment: OrderCommitment): {
   salt: string;
 } {
   return {
-    market_id: decimalToField(commitment.marketId),
+    market_id: marketIdToField(commitment.marketId),
     side: sideToField(commitment.side),
     usdc_amount: decimalToField(commitment.usdcAmount),
     destination_wallet: pubkeyToField(commitment.destinationWallet),
-    salt: hexToField(commitment.salt),
+    salt: stringToField(commitment.salt),
   };
 }
 

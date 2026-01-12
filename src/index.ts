@@ -3,6 +3,8 @@ import cors from 'cors';
 import { proveRouter } from './routes/prove.js';
 import { verifyRouter } from './routes/verify.js';
 import { poseidonRouter } from './routes/poseidon.js';
+import relayRouter from './routes/relay.js';
+import { getRelayWallet } from './services/wallet.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,9 @@ app.use(poseidonRouter);
 // ZK Proof API
 app.use('/prove', proveRouter);
 app.use('/verify', verifyRouter);
+
+// Full Relay API (order collection, execution, distribution)
+app.use('/relay', relayRouter);
 
 // Error handling
 app.use(

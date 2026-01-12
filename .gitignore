@@ -8,3 +8,4 @@ circuits/*/target/
 *.tgz
 coverage/
 .nyc_output/
+.wallet/

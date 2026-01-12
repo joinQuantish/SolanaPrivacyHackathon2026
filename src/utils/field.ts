@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { createHash } from 'crypto';
 
 // BN254 field prime (used by Noir/Barretenberg)
 const BN254_PRIME = BigInt(
@@ -61,6 +62,29 @@ export function usdcToField(amount: number | string): string {
  */
 export function sideToField(side: 'YES' | 'NO'): string {
   return side === 'YES' ? '1' : '0';
+}
+
+/**
+ * Convert any string to a field element (using SHA256 hash)
+ * Useful for market IDs like "BTC-100K-JAN"
+ */
+export function stringToField(str: string): string {
+  // If it's already a pure decimal number, use it directly
+  if (/^\d+$/.test(str)) {
+    return decimalToField(str);
+  }
+
+  // Otherwise, hash the string to get a deterministic field element
+  const hash = createHash('sha256').update(str).digest('hex');
+  return hexToField(hash);
+}
+
+/**
+ * Convert market ID to field element
+ * Handles both numeric IDs and string tickers
+ */
+export function marketIdToField(marketId: string): string {
+  return stringToField(marketId);
 }
 
 /**
