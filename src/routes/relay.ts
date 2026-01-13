@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import {
   submitOrder,
+  submitEncryptedOrder,
+  executeEncryptedBatch,
   getOrder,
   getBatch,
   getBatchOrders,
@@ -19,7 +21,8 @@ import {
 } from '../services/deposit-monitor.js';
 import { getRelayWallet, isWalletInitialized } from '../services/wallet.js';
 import { executeDFlowTrade, getMarketInfo, estimateShares, getMcpWalletAddress, distributeTokensViaMcp } from '../services/dflow.js';
-import type { OrderSubmission } from '../types/relay.js';
+import { isMpcEnabled } from '../services/arcium-mpc.js';
+import type { OrderSubmission, EncryptedOrderSubmission } from '../types/relay.js';
 import { DEFAULT_RELAY_CONFIG } from '../types/relay.js';
 
 const router = Router();
@@ -241,6 +244,148 @@ router.post('/order', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /relay/order/encrypted
+ * Submit an ENCRYPTED order via Arcium MPC
+ *
+ * The relay CANNOT see:
+ * - usdcAmount (encrypted)
+ * - distribution (encrypted)
+ * - salt (encrypted)
+ *
+ * The relay CAN see:
+ * - marketId (for batching)
+ * - side (for batching)
+ * - encrypted ciphertext (cannot decrypt)
+ *
+ * Example:
+ * {
+ *   "marketId": "BTC-100K-JAN",
+ *   "side": "YES",
+ *   "encryptedData": {
+ *     "ciphertext": "<base64>",
+ *     "publicKey": "<base64>",
+ *     "nonce": "<base64>"
+ *   }
+ * }
+ */
+router.post('/order/encrypted', async (req: Request, res: Response) => {
+  try {
+    // Check if MPC is enabled
+    if (!isMpcEnabled()) {
+      res.status(503).json({
+        success: false,
+        error: 'MPC is not enabled. Set ARCIUM_MPC_ENABLED=true to enable encrypted orders.',
+      });
+      return;
+    }
+
+    const submission: EncryptedOrderSubmission = req.body;
+
+    // Validate required fields
+    if (!submission.marketId || !submission.side) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing required fields: marketId, side',
+      });
+      return;
+    }
+
+    // Validate encrypted data
+    if (!submission.encryptedData ||
+        !submission.encryptedData.ciphertext ||
+        !submission.encryptedData.publicKey ||
+        !submission.encryptedData.nonce) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing or invalid encryptedData (requires ciphertext, publicKey, nonce)',
+      });
+      return;
+    }
+
+    // Validate side
+    if (submission.side !== 'YES' && submission.side !== 'NO') {
+      res.status(400).json({
+        success: false,
+        error: 'Side must be YES or NO',
+      });
+      return;
+    }
+
+    // Submit encrypted order
+    const order = await submitEncryptedOrder(submission);
+
+    // Get deposit address
+    let depositAddress: string;
+    let walletType: string;
+
+    const mcpAddress = await getMcpWalletAddress();
+    if (mcpAddress) {
+      depositAddress = mcpAddress;
+      walletType = 'mcp';
+    } else {
+      const wallet = await getRelayWallet();
+      depositAddress = wallet.getAddress();
+      walletType = 'legacy';
+    }
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      batchId: order.batchId,
+      status: order.status,
+      isEncrypted: true,
+
+      // IMPORTANT: Relay cannot see these values
+      hiddenFields: ['usdcAmount', 'distribution', 'salt', 'commitmentHash'],
+
+      // Deposit instructions (amount is encrypted - user knows it)
+      deposit: {
+        address: depositAddress,
+        walletType,
+        memo: order.id,
+        expiresAt: order.depositExpiresAt,
+        note: 'Send the encrypted USDC amount to this address with the memo',
+      },
+
+      // Privacy info
+      privacy: {
+        mpcEnabled: true,
+        relayCanSee: ['marketId', 'side', 'encryptedCiphertext'],
+        relayCannotSee: ['usdcAmount', 'distribution', 'salt'],
+        note: 'Order amount and distribution are encrypted. Only MPC nodes can decrypt.',
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to submit encrypted order',
+    });
+  }
+});
+
+/**
+ * GET /relay/mpc/status
+ * Get MPC service status
+ */
+router.get('/mpc/status', (_req: Request, res: Response) => {
+  const enabled = isMpcEnabled();
+
+  res.json({
+    success: true,
+    mpcEnabled: enabled,
+    description: enabled
+      ? 'MPC is enabled. Encrypted orders are accepted and processed via Arcium MXE.'
+      : 'MPC is disabled. Set ARCIUM_MPC_ENABLED=true to enable.',
+    features: enabled ? [
+      'Encrypted order submission',
+      'Blind batch total computation',
+      'MPC-based distribution',
+      'Relay never sees individual amounts',
+    ] : [],
+  });
+});
+
+/**
  * GET /relay/order/:orderId
  * Get order status
  */
@@ -290,6 +435,7 @@ router.get('/batch/:batchId', (req: Request, res: Response) => {
 /**
  * POST /relay/batch/:batchId/execute
  * Manually trigger batch execution (for testing)
+ * Automatically detects if batch is encrypted and uses MPC execution
  */
 router.post('/batch/:batchId/execute', async (req: Request, res: Response) => {
   const { batchId } = req.params;
@@ -308,7 +454,40 @@ router.post('/batch/:batchId/execute', async (req: Request, res: Response) => {
     markBatchReady(batchId);
   }
 
-  // Execute
+  // Check if this is an encrypted batch
+  if (batch.isEncrypted) {
+    // Execute via MPC - relay is blind to order amounts
+    console.log(`[MPC] Executing encrypted batch ${batchId} via MPC...`);
+
+    const result = await executeEncryptedBatch(batchId, async (b, totalUsdc) => {
+      // DFlow executor receives the MPC-revealed total
+      return executeDFlowTrade(b);
+    });
+
+    if (!result.success) {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        batch: result.batch,
+        isEncrypted: true,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      batch: result.batch,
+      isEncrypted: true,
+      mpcExecution: {
+        revealedTotal: batch.mpcRevealedTotal,
+        revealedCount: batch.mpcRevealedCount,
+        note: 'Relay only learned batch total. Individual order amounts remain hidden.',
+      },
+    });
+    return;
+  }
+
+  // Regular (non-encrypted) execution
   const result = await executeBatch(batchId, executeDFlowTrade);
 
   if (!result.success) {

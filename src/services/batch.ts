@@ -3,6 +3,7 @@ import type {
   RelayOrder,
   RelayBatch,
   OrderSubmission,
+  EncryptedOrderSubmission,
   BatchStatus,
   OrderStatus,
   DistributionPlan,
@@ -19,6 +20,7 @@ import { generateProof } from './prover.js';
 import { getRelayWallet } from './wallet.js';
 import { decimalToField, pubkeyToField, sideToField } from '../utils/field.js';
 import type { DistributionEntry } from '../types/index.js';
+import { getArciumMpcService, isMpcEnabled, type EncryptedOrderData } from './arcium-mpc.js';
 
 // In-memory storage (use database in production)
 const orders: Map<string, RelayOrder> = new Map();
@@ -33,9 +35,11 @@ const collectingBatches: Map<string, string> = new Map(); // "marketId:side" -> 
 function getOrCreateCollectingBatch(
   marketId: string,
   side: 'YES' | 'NO',
-  config: RelayConfig
+  config: RelayConfig,
+  isEncrypted: boolean = false
 ): RelayBatch {
-  const key = `${marketId}:${side}`;
+  // Encrypted and non-encrypted orders go in separate batches
+  const key = `${marketId}:${side}:${isEncrypted ? 'enc' : 'plain'}`;
   const existingBatchId = collectingBatches.get(key);
 
   if (existingBatchId) {
@@ -49,17 +53,18 @@ function getOrCreateCollectingBatch(
   const batch: RelayBatch = {
     id: uuidv4(),
     status: 'collecting',
+    isEncrypted,
     marketId,
     side,
     orderIds: [],
-    totalUsdcCommitted: '0',
+    totalUsdcCommitted: isEncrypted ? 'HIDDEN' : '0', // MPC batches don't reveal total
     createdAt: new Date(),
   };
 
   batches.set(batch.id, batch);
   collectingBatches.set(key, batch.id);
 
-  console.log(`Created new batch ${batch.id} for ${marketId} ${side}`);
+  console.log(`Created new ${isEncrypted ? 'ENCRYPTED' : 'regular'} batch ${batch.id} for ${marketId} ${side}`);
   return batch;
 }
 
@@ -146,17 +151,18 @@ export async function submitOrder(
     poseidonHashN
   );
 
-  // Get or create batch
-  const batch = getOrCreateCollectingBatch(submission.marketId, submission.side, config);
+  // Get or create batch (non-encrypted)
+  const batch = getOrCreateCollectingBatch(submission.marketId, submission.side, config, false);
 
   // Deposit expires in 1 hour
   const depositExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-  // Create order
+  // Create order (non-encrypted - relay can see all data)
   const order: RelayOrder = {
     id: uuidv4(),
     batchId: batch.id,
     status: 'pending_deposit', // Waiting for user to send USDC
+    isEncrypted: false,        // Regular order - relay sees all data
     marketId: submission.marketId,
     side: submission.side,
     usdcAmount: submission.usdcAmount,
@@ -200,6 +206,128 @@ export async function submitOrder(
   }
 
   return order;
+}
+
+/**
+ * Submit an ENCRYPTED order to the relay
+ *
+ * The relay CANNOT see:
+ * - usdcAmount (hidden in ciphertext)
+ * - distribution (hidden in ciphertext)
+ * - salt (hidden in ciphertext)
+ *
+ * The relay CAN see:
+ * - marketId (needed for batching)
+ * - side (needed for batching)
+ * - encrypted ciphertext (cannot decrypt)
+ *
+ * NO FALLBACKS - Real MPC only!
+ */
+export async function submitEncryptedOrder(
+  submission: EncryptedOrderSubmission,
+  config: RelayConfig = { ...DEFAULT_RELAY_CONFIG }
+): Promise<RelayOrder> {
+  if (!isMpcEnabled()) {
+    throw new Error('MPC is not enabled. Set ARCIUM_MPC_ENABLED=true');
+  }
+
+  console.log(`[MPC] Submitting encrypted order for ${submission.marketId} ${submission.side}`);
+
+  // Get or create encrypted batch
+  const batch = getOrCreateCollectingBatch(submission.marketId, submission.side, config, true);
+
+  // Initialize MPC batch if this is the first order
+  const mpcService = getArciumMpcService();
+  let mpcState = mpcService.getBatchState(batch.id);
+
+  if (!mpcState) {
+    console.log(`[MPC] Initializing MPC state for batch ${batch.id}`);
+    mpcState = await mpcService.initBatch(batch.id, submission.marketId, submission.side);
+    batch.mpcStateAddress = mpcState.stateAddress.toBase58();
+  }
+
+  // Create order with encrypted data
+  // IMPORTANT: Relay cannot see actual values - these are placeholders
+  const order: RelayOrder = {
+    id: uuidv4(),
+    batchId: batch.id,
+    status: 'pending_deposit',
+    isEncrypted: true,           // ENCRYPTED - relay is blind
+    marketId: submission.marketId,
+    side: submission.side,
+    // HIDDEN values - relay doesn't know these
+    usdcAmount: 'ENCRYPTED',
+    distribution: [],            // Hidden - MPC will reveal during distribution
+    destinationWallet: 'ENCRYPTED',
+    salt: 'ENCRYPTED',
+    commitmentHash: 'ENCRYPTED', // MPC computes this internally
+    // Store encrypted data
+    encryptedData: submission.encryptedData,
+    mpcOrderIndex: batch.orderIds.length,
+    depositExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    createdAt: new Date(),
+    yesTokenMint: submission.yesTokenMint,
+    noTokenMint: submission.noTokenMint,
+  };
+
+  // Save order
+  orders.set(order.id, order);
+
+  // Add to batch
+  batch.orderIds.push(order.id);
+
+  // Store token mints
+  if (submission.yesTokenMint && !batch.yesTokenMint) {
+    batch.yesTokenMint = submission.yesTokenMint;
+  }
+  if (submission.noTokenMint && !batch.noTokenMint) {
+    batch.noTokenMint = submission.noTokenMint;
+  }
+
+  console.log(`[MPC] Encrypted order ${order.id} added to batch ${batch.id} (index ${order.mpcOrderIndex})`);
+  console.log(`[MPC] Relay CANNOT see: usdcAmount, distribution, salt`);
+  console.log(`[MPC] Batch now has ${batch.orderIds.length} encrypted orders`);
+
+  // Check if batch is ready
+  if (batch.orderIds.length >= config.maxBatchSize) {
+    batch.status = 'ready';
+    console.log(`[MPC] Batch ${batch.id} is full and ready for MPC execution`);
+  }
+
+  return order;
+}
+
+/**
+ * Queue encrypted order data to MPC after deposit confirmed
+ */
+export async function queueEncryptedOrderToMpc(orderId: string): Promise<{ success: boolean; error?: string }> {
+  const order = orders.get(orderId);
+  if (!order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  if (!order.isEncrypted || !order.encryptedData) {
+    return { success: false, error: 'Order is not encrypted' };
+  }
+
+  if (order.mpcOrderIndex === undefined) {
+    return { success: false, error: 'Order missing MPC index' };
+  }
+
+  const mpcService = getArciumMpcService();
+
+  // Convert base64 to Uint8Array
+  const encryptedOrderData: EncryptedOrderData = {
+    ciphertext: Buffer.from(order.encryptedData.ciphertext, 'base64'),
+    publicKey: Buffer.from(order.encryptedData.publicKey, 'base64'),
+    nonce: Buffer.from(order.encryptedData.nonce, 'base64'),
+  };
+
+  return await mpcService.addEncryptedOrder(
+    order.batchId!,
+    encryptedOrderData,
+    order.mpcOrderIndex
+  );
 }
 
 /**
@@ -596,6 +724,171 @@ export async function executeBatch(
     console.log(`Batch ${batchId} completed successfully!`);
 
     return { success: true, batch, distribution };
+
+  } catch (error) {
+    batch.status = 'failed';
+    return {
+      success: false,
+      batch,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Execute an ENCRYPTED batch via MPC
+ *
+ * This is the blind execution flow where the relay:
+ * - CANNOT see individual order amounts
+ * - CANNOT see distribution details
+ * - ONLY learns batch total (from MPC reveal)
+ * - ONLY learns per-order allocations during distribution (one at a time)
+ *
+ * NO FALLBACKS - Real MPC only!
+ */
+export async function executeEncryptedBatch(
+  batchId: string,
+  dflowExecutor: (batch: RelayBatch, totalUsdc: number) => Promise<DFlowExecutionResult>
+): Promise<{
+  success: boolean;
+  batch: RelayBatch;
+  error?: string;
+}> {
+  const batch = batches.get(batchId);
+  if (!batch) {
+    return { success: false, batch: batch!, error: 'Batch not found' };
+  }
+
+  if (!batch.isEncrypted) {
+    return { success: false, batch, error: 'Batch is not encrypted - use executeBatch instead' };
+  }
+
+  if (batch.status !== 'ready') {
+    return { success: false, batch, error: `Batch status is ${batch.status}, not ready` };
+  }
+
+  const mpcService = getArciumMpcService();
+  const mpcState = mpcService.getBatchState(batchId);
+
+  if (!mpcState) {
+    return { success: false, batch, error: 'MPC state not found for batch' };
+  }
+
+  try {
+    // 1. Queue all funded orders to MPC
+    console.log(`[MPC] Queueing encrypted orders to MPC for batch ${batchId}...`);
+    batch.status = 'mpc_computing';
+
+    const fundedOrders = getBatchOrders(batch.id).filter(o => o.status === 'pending');
+
+    if (fundedOrders.length === 0) {
+      return { success: false, batch, error: 'No funded orders in batch' };
+    }
+
+    for (const order of fundedOrders) {
+      if (order.isEncrypted && order.encryptedData) {
+        const result = await queueEncryptedOrderToMpc(order.id);
+        if (!result.success) {
+          console.error(`[MPC] Failed to queue order ${order.id}: ${result.error}`);
+        }
+      }
+    }
+
+    // 2. Close batch and get MPC-revealed total
+    console.log(`[MPC] Requesting MPC to reveal batch total...`);
+    const revealResult = await mpcService.closeBatchAndRevealTotal(batchId);
+
+    if (!revealResult.success || !revealResult.totalUsdc) {
+      batch.status = 'failed';
+      return { success: false, batch, error: revealResult.error || 'MPC reveal failed' };
+    }
+
+    // IMPORTANT: This is the ONLY time relay learns the total
+    const totalUsdc = revealResult.totalUsdc;
+    batch.mpcRevealedTotal = totalUsdc;
+    batch.mpcRevealedCount = revealResult.orderCount;
+    batch.totalUsdcCommitted = totalUsdc.toString();
+
+    console.log(`[MPC] MPC REVEALED batch total: $${totalUsdc} (${revealResult.orderCount} orders)`);
+    console.log(`[MPC] Relay still does NOT know individual order amounts`);
+
+    // 3. Execute on DFlow with revealed total
+    console.log(`[MPC] Executing batch on DFlow with revealed total...`);
+    batch.status = 'executing';
+    batch.executionStartedAt = new Date();
+
+    const executionResult = await dflowExecutor(batch, totalUsdc);
+
+    if (!executionResult.success) {
+      batch.status = 'failed';
+      return { success: false, batch, error: executionResult.error };
+    }
+
+    // Store execution results
+    batch.actualUsdcSpent = executionResult.usdcSpent;
+    batch.actualSharesReceived = executionResult.sharesReceived;
+    batch.fillPercentage = executionResult.fillPercentage;
+    batch.executionPrice = executionResult.averagePrice;
+    batch.dflowOrderId = executionResult.orderId;
+    batch.dflowTxSignature = executionResult.txSignature;
+    batch.executionCompletedAt = new Date();
+
+    // 4. Use MPC to compute and reveal distributions (one at a time)
+    console.log(`[MPC] Requesting MPC distribution instructions...`);
+    batch.status = 'mpc_distributing';
+
+    const totalShares = parseFloat(executionResult.sharesReceived);
+
+    // Distribute to each order via MPC
+    for (let i = 0; i < fundedOrders.length; i++) {
+      const order = fundedOrders[i];
+
+      console.log(`[MPC] Getting distribution for order ${i + 1}/${fundedOrders.length}...`);
+
+      const distResult = await mpcService.getDistributionInstruction(batchId, i, totalShares);
+
+      if (distResult.success && distResult.instruction) {
+        // MPC reveals: sharesAmount and destinationWallet for this ONE order
+        const { sharesAmount, destinationWallet } = distResult.instruction;
+
+        console.log(`[MPC] Order ${i}: sending ${sharesAmount} shares to ${destinationWallet.toBase58()}`);
+
+        // Execute the transfer
+        if (executionResult.mcpWallet) {
+          const { distributeTokensViaMcp } = await import('./dflow.js');
+          await distributeTokensViaMcp(executionResult.shareTokenMint, [{
+            wallet: destinationWallet.toBase58(),
+            amount: sharesAmount,
+          }]);
+        } else {
+          const wallet = await getRelayWallet();
+          await wallet.transferToken(
+            executionResult.shareTokenMint,
+            destinationWallet.toBase58(),
+            sharesAmount,
+            6
+          );
+        }
+
+        // Update order (with MPC-revealed values)
+        order.sharesReceived = sharesAmount.toString();
+        order.status = 'completed';
+        order.completedAt = new Date();
+      } else {
+        console.error(`[MPC] Distribution failed for order ${i}: ${distResult.error}`);
+        // Order remains in pending state for retry
+      }
+    }
+
+    // 5. Mark batch complete
+    await mpcService.completeBatch(batchId);
+    batch.status = 'completed';
+    batch.distributionCompletedAt = new Date();
+
+    console.log(`[MPC] Encrypted batch ${batchId} completed successfully!`);
+    console.log(`[MPC] Relay NEVER learned individual order amounts`);
+
+    return { success: true, batch };
 
   } catch (error) {
     batch.status = 'failed';

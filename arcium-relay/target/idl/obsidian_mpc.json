@@ -1,0 +1,638 @@
+{
+  "address": "9Ywdn11qyk6eJz1XJSyPLWkiTFxpdqAxbcftS2PgvTpM",
+  "metadata": {
+    "name": "obsidian_mpc",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Obsidian Relay MPC Integration - Blind Batch Execution"
+  },
+  "instructions": [
+    {
+      "name": "close_batch",
+      "docs": [
+        "Close the batch and record the revealed total from MPC."
+      ],
+      "discriminator": [
+        166,
+        174,
+        35,
+        253,
+        209,
+        211,
+        181,
+        28
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "batch"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "revealed_total",
+          "type": "u64"
+        },
+        {
+          "name": "revealed_count",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "create_batch",
+      "docs": [
+        "Initialize a new batch."
+      ],
+      "discriminator": [
+        159,
+        198,
+        248,
+        43,
+        248,
+        31,
+        235,
+        86
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_id",
+          "type": "string"
+        },
+        {
+          "name": "side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "mark_distributed",
+      "docs": [
+        "Mark distribution as executed."
+      ],
+      "discriminator": [
+        225,
+        106,
+        116,
+        3,
+        4,
+        174,
+        164,
+        224
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true,
+          "relations": [
+            "distribution"
+          ]
+        },
+        {
+          "name": "distribution",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "batch"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "tx_signature",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "record_distribution",
+      "docs": [
+        "Record a distribution (revealed from MPC)."
+      ],
+      "discriminator": [
+        35,
+        239,
+        115,
+        184,
+        162,
+        108,
+        209,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true
+        },
+        {
+          "name": "distribution",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "batch"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "order_index",
+          "type": "u8"
+        },
+        {
+          "name": "shares",
+          "type": "u64"
+        },
+        {
+          "name": "wallet",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "record_execution",
+      "docs": [
+        "Record execution result from DFlow."
+      ],
+      "discriminator": [
+        231,
+        245,
+        144,
+        129,
+        178,
+        195,
+        89,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "batch"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "total_shares",
+          "type": "u64"
+        },
+        {
+          "name": "tx_signature",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "record_order",
+      "docs": [
+        "Record that an order was submitted.",
+        "The actual amount is hidden in the MPC."
+      ],
+      "discriminator": [
+        142,
+        220,
+        120,
+        190,
+        0,
+        153,
+        119,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "batch",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "batch"
+          ]
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Batch",
+      "discriminator": [
+        156,
+        194,
+        70,
+        44,
+        22,
+        88,
+        137,
+        44
+      ]
+    },
+    {
+      "name": "Distribution",
+      "discriminator": [
+        176,
+        85,
+        17,
+        11,
+        13,
+        194,
+        18,
+        1
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BatchClosed",
+      "discriminator": [
+        192,
+        76,
+        201,
+        211,
+        10,
+        212,
+        139,
+        232
+      ]
+    },
+    {
+      "name": "BatchCreated",
+      "discriminator": [
+        231,
+        92,
+        210,
+        203,
+        2,
+        59,
+        109,
+        234
+      ]
+    },
+    {
+      "name": "DistributionExecuted",
+      "discriminator": [
+        120,
+        132,
+        182,
+        5,
+        60,
+        75,
+        183,
+        95
+      ]
+    },
+    {
+      "name": "DistributionRecorded",
+      "discriminator": [
+        84,
+        56,
+        187,
+        206,
+        131,
+        85,
+        136,
+        227
+      ]
+    },
+    {
+      "name": "ExecutionRecorded",
+      "discriminator": [
+        231,
+        133,
+        106,
+        58,
+        31,
+        56,
+        123,
+        10
+      ]
+    },
+    {
+      "name": "OrderRecorded",
+      "discriminator": [
+        43,
+        225,
+        76,
+        203,
+        41,
+        27,
+        170,
+        4
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "BatchNotOpen",
+      "msg": "Batch is not open"
+    },
+    {
+      "code": 6001,
+      "name": "BatchEmpty",
+      "msg": "Batch is empty"
+    },
+    {
+      "code": 6002,
+      "name": "BatchNotClosed",
+      "msg": "Batch is not closed"
+    },
+    {
+      "code": 6003,
+      "name": "BatchNotExecuted",
+      "msg": "Batch is not executed"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyDistributed",
+      "msg": "Already distributed"
+    },
+    {
+      "code": 6005,
+      "name": "CountMismatch",
+      "msg": "Order count mismatch"
+    }
+  ],
+  "types": [
+    {
+      "name": "Batch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "BatchStatus"
+              }
+            }
+          },
+          {
+            "name": "order_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "distributions_completed",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BatchClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "order_count",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BatchCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BatchStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Closed"
+          },
+          {
+            "name": "Executed"
+          },
+          {
+            "name": "Distributing"
+          },
+          {
+            "name": "Completed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Distribution",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_index",
+            "type": "u8"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "executed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DistributionExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_index",
+            "type": "u8"
+          },
+          {
+            "name": "tx_signature",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DistributionRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_index",
+            "type": "u8"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExecutionRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "tx_signature",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "batch",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_count",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

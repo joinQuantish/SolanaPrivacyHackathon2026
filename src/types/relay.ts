@@ -1,5 +1,8 @@
 /**
  * Types for the full relay service
+ *
+ * Includes support for Arcium MPC encrypted orders where the relay
+ * cannot see individual order amounts or distribution details.
  */
 
 // Order status in the relay
@@ -15,13 +18,15 @@ export type OrderStatus =
 
 // Batch status
 export type BatchStatus =
-  | 'collecting'   // Accepting orders
-  | 'ready'        // Full or timeout, ready to execute
-  | 'executing'    // Trade in progress on DFlow
-  | 'proving'      // Generating ZK proof
-  | 'distributing' // Sending shares to users
-  | 'completed'    // All done
-  | 'failed';      // Something went wrong
+  | 'collecting'      // Accepting orders
+  | 'ready'           // Full or timeout, ready to execute
+  | 'mpc_computing'   // MPC computing batch total (encrypted batches)
+  | 'executing'       // Trade in progress on DFlow
+  | 'proving'         // Generating ZK proof
+  | 'mpc_distributing'// MPC computing distributions (encrypted batches)
+  | 'distributing'    // Sending shares to users
+  | 'completed'       // All done
+  | 'failed';         // Something went wrong
 
 /**
  * Distribution destination (wallet + percentage)
@@ -60,6 +65,28 @@ export interface OrderSubmission {
 export const MAX_DISTRIBUTION_DESTINATIONS = 10;
 
 /**
+ * Encrypted order submission (for MPC)
+ * User encrypts order client-side using Arcium SDK
+ * Relay cannot see: usdcAmount, distribution details, salt
+ */
+export interface EncryptedOrderSubmission {
+  // Visible to relay (needed for batching)
+  marketId: string;
+  side: 'YES' | 'NO';
+
+  // Encrypted data (relay cannot decrypt)
+  encryptedData: {
+    ciphertext: string;  // Base64 encoded
+    publicKey: string;   // Base64 encoded ephemeral pubkey
+    nonce: string;       // Base64 encoded nonce
+  };
+
+  // Optional token mints
+  yesTokenMint?: string;
+  noTokenMint?: string;
+}
+
+/**
  * Order stored in the relay
  */
 export interface RelayOrder {
@@ -67,18 +94,30 @@ export interface RelayOrder {
   batchId: string | null;
   status: OrderStatus;
 
-  // Commitment data
+  // Is this an encrypted order (MPC)?
+  isEncrypted: boolean;
+
+  // Commitment data (NOT AVAILABLE for encrypted orders)
   marketId: string;
   side: 'YES' | 'NO';
-  usdcAmount: string;         // Committed amount
-  salt: string;
-  commitmentHash: string;     // Poseidon hash
+  usdcAmount: string;         // Committed amount (HIDDEN for encrypted orders - set to "0")
+  salt: string;               // HIDDEN for encrypted orders
+  commitmentHash: string;     // Poseidon hash (HIDDEN for encrypted orders)
 
-  // Distribution plan (up to 10 destinations)
+  // Distribution plan (HIDDEN for encrypted orders)
   distribution: DistributionDestination[];
 
-  // Legacy single destination (first in distribution array)
+  // Legacy single destination (HIDDEN for encrypted orders)
   destinationWallet: string;
+
+  // Encrypted order data (only for isEncrypted=true)
+  // Relay stores this but CANNOT decrypt it
+  encryptedData?: {
+    ciphertext: string;  // Base64 encoded
+    publicKey: string;   // Base64 encoded
+    nonce: string;       // Base64 encoded
+  };
+  mpcOrderIndex?: number;     // Index in MPC batch
 
   // Token mints (user-provided or fetched from API)
   yesTokenMint?: string;
@@ -120,6 +159,9 @@ export interface RelayBatch {
   id: string;
   status: BatchStatus;
 
+  // Is this an MPC batch (encrypted orders)?
+  isEncrypted: boolean;
+
   // Batch parameters
   marketId: string;
   side: 'YES' | 'NO';
@@ -132,7 +174,13 @@ export interface RelayBatch {
   orderIds: string[];
 
   // Committed totals
+  // For encrypted batches, this is UNKNOWN until MPC reveals it
   totalUsdcCommitted: string;
+
+  // MPC-specific fields (only for isEncrypted=true)
+  mpcStateAddress?: string;       // On-chain PDA for encrypted batch state
+  mpcRevealedTotal?: number;      // Total revealed by MPC (in USDC)
+  mpcRevealedCount?: number;      // Order count revealed by MPC
 
   // Merkle tree
   merkleRoot?: string;

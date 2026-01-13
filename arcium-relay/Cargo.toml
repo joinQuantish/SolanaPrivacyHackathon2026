@@ -1,0 +1,10 @@
+# This workspace only contains encrypted-ixs
+# The Anchor program is built separately
+[workspace]
+members = ["encrypted-ixs"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1

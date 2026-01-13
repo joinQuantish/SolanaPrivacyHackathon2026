@@ -1,0 +1,14 @@
+/Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/deps/libserde-8cf3df1cd5cc27c9.rmeta: /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/build/serde-aa65b807e4605054/out/private.rs
+
+/Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/deps/libserde-8cf3df1cd5cc27c9.rlib: /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/build/serde-aa65b807e4605054/out/private.rs
+
+/Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/deps/serde-8cf3df1cd5cc27c9.d: /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/build/serde-aa65b807e4605054/out/private.rs
+
+/Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs:
+/Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs:
+/Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs:
+/Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs:
+/Users/joshberns/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs:
+/Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/build/serde-aa65b807e4605054/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/joshberns/securesoltransfer/arcium-relay/programs/target/release/build/serde-aa65b807e4605054/out

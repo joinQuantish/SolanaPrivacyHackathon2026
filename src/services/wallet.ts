@@ -154,6 +154,28 @@ export class RelayWallet {
   }
 
   /**
+   * Sign and send a transaction
+   * Used by arcium-mpc.ts for MPC transactions
+   */
+  async signAndSendTransaction(tx: Transaction): Promise<{ success: boolean; signature?: string; error?: string }> {
+    try {
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = this.keypair.publicKey;
+
+      const signature = await this.connection.sendTransaction(tx, [this.keypair]);
+      await this.connection.confirmTransaction(signature, 'confirmed');
+
+      return { success: true, signature };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
    * Transfer USDC to a recipient
    */
   async transferUsdc(recipient: string, amount: number): Promise<TransferResult> {
