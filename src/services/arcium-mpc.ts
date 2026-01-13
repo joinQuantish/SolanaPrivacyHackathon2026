@@ -21,11 +21,15 @@ import { getRelayWallet } from './wallet.js';
 
 // Arcium program IDs (mainnet alpha / devnet)
 const ARCIUM_MXE_PROGRAM = new PublicKey('MXE3xfNRCrE6b3P6Y5NvfgHWYPRQKL7hSrPTqJwpump');
-const OBSIDIAN_MPC_PROGRAM = new PublicKey('9Ywdn11qyk6eJz1XJSyPLWkiTFxpdqAxbcftS2PgvTpM');
+
+// Use environment variable or default to localnet deployment
+const OBSIDIAN_MPC_PROGRAM = new PublicKey(
+  process.env.OBSIDIAN_MPC_PROGRAM_ID || '6EsUwDkg4z6qTsH8VQkCpPXJAyogm8A6YSnjh14Ub8Bp' // localnet
+);
 
 // Cluster endpoints
 const ARCIUM_DEVNET_RPC = 'https://devnet.arcium.network';
-const SOLANA_DEVNET_RPC = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'http://127.0.0.1:8899'; // Default to localnet
 
 /**
  * Encrypted order data that user submits
@@ -78,9 +82,10 @@ class ArciumMpcService {
   private batches: Map<string, MpcBatchState> = new Map();
 
   constructor() {
-    this.connection = new Connection(SOLANA_DEVNET_RPC, 'confirmed');
+    this.connection = new Connection(SOLANA_RPC_URL, 'confirmed');
     this.arciumConnection = new Connection(ARCIUM_DEVNET_RPC, 'confirmed');
-    console.log('[ArciumMPC] Initialized with Arcium devnet');
+    console.log(`[ArciumMPC] Initialized with RPC: ${SOLANA_RPC_URL}`);
+    console.log(`[ArciumMPC] Program ID: ${OBSIDIAN_MPC_PROGRAM.toBase58()}`);
   }
 
   /**
