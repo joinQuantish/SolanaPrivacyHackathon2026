@@ -1,0 +1,323 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Axiom.trade inspired dark theme */
+  --background: #06070B;
+  --background-secondary: rgb(16, 17, 20);
+  --background-tertiary: rgb(24, 24, 26);
+  --background-row-hover: rgb(30, 31, 35);
+
+  --text-primary: rgb(252, 252, 252);
+  --text-secondary: rgb(200, 201, 209);
+  --text-tertiary: rgb(119, 122, 140);
+
+  --primary-color: rgb(82, 111, 255);
+  --primary-color-hover: rgb(102, 131, 255);
+
+  --increase: rgb(47, 227, 172);
+  --increase-hover: rgb(91, 231, 189);
+  --chart-up: rgb(11, 153, 129);
+
+  --decrease: rgb(236, 57, 122);
+  --decrease-hover: rgb(248, 100, 154);
+  --chart-down: rgb(242, 53, 70);
+
+  --border-subtle: rgb(31, 31, 35);
+  --primary-stroke: rgb(34, 36, 45);
+  --secondary-stroke: rgb(50, 53, 66);
+
+  --primary-green: rgb(18, 175, 128);
+  --primary-red: rgb(242, 84, 97);
+  --primary-orange: rgb(226, 124, 77);
+  --primary-yellow: rgb(220, 193, 60);
+  --primary-light-blue: rgb(82, 197, 255);
+
+  /* Legacy mapping */
+  --bg-primary: var(--background);
+  --bg-secondary: var(--background-secondary);
+  --bg-card: var(--background-tertiary);
+  --bg-card-hover: var(--background-row-hover);
+  --border-color: var(--primary-stroke);
+  --accent: var(--primary-color);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-obsidian-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-obsidian-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-obsidian-500;
+}
+
+/* Card styles */
+@layer components {
+  .wallet-card {
+    @apply bg-obsidian-800 border border-obsidian-700 rounded-xl p-4
+           transition-all duration-200 hover:border-accent-purple/50
+           hover:shadow-lg hover:shadow-accent-purple/10;
+  }
+
+  .wallet-card-master {
+    @apply bg-gradient-to-br from-obsidian-800 to-obsidian-900
+           border border-obsidian-600 rounded-2xl p-6
+           shadow-xl shadow-accent-purple/5;
+  }
+
+  .btn-primary {
+    @apply bg-accent-purple hover:bg-accent-purple/80
+           text-white font-medium px-4 py-2 rounded-lg
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-obsidian-700 hover:bg-obsidian-600
+           text-obsidian-100 font-medium px-4 py-2 rounded-lg
+           transition-all duration-200 border border-obsidian-600
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-obsidian-700/50
+           text-obsidian-300 hover:text-obsidian-100
+           font-medium px-4 py-2 rounded-lg
+           transition-all duration-200;
+  }
+
+  .input-field {
+    @apply bg-obsidian-900 border border-obsidian-600 rounded-lg
+           px-4 py-3 text-obsidian-50 placeholder-obsidian-500
+           focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple
+           transition-all duration-200 w-full;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50
+           flex items-center justify-center p-4;
+  }
+
+  .modal-content {
+    @apply bg-obsidian-800 border border-obsidian-700 rounded-2xl
+           shadow-2xl max-w-md w-full max-h-[90vh] overflow-auto;
+  }
+
+  .badge {
+    @apply px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green {
+    @apply bg-accent-green/20 text-accent-green;
+  }
+
+  .badge-red {
+    @apply bg-accent-red/20 text-accent-red;
+  }
+
+  .badge-yellow {
+    @apply bg-accent-yellow/20 text-accent-yellow;
+  }
+
+  .badge-purple {
+    @apply bg-accent-purple/20 text-accent-purple;
+  }
+}
+
+/* Glass morphism effect */
+.glass {
+  @apply bg-obsidian-800/80 backdrop-blur-xl border border-obsidian-700/50;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-accent-purple to-accent-blue bg-clip-text text-transparent;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  @apply w-5 h-5 border-2 border-obsidian-600 border-t-accent-purple rounded-full;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Toast animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-enter {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Axiom-style table */
+.market-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.market-table th {
+  background-color: var(--background-secondary);
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--primary-stroke);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.market-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.market-table tbody tr {
+  background-color: var(--background);
+  transition: background-color 0.15s ease;
+}
+
+.market-table tbody tr:hover {
+  background-color: var(--background-row-hover);
+}
+
+/* Price colors */
+.price-up {
+  color: var(--increase);
+}
+
+.price-down {
+  color: var(--decrease);
+}
+
+.price-neutral {
+  color: var(--text-secondary);
+}
+
+/* Mini chart placeholder */
+.mini-chart {
+  width: 80px;
+  height: 32px;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.mini-chart .bar {
+  flex: 1;
+  background: var(--chart-up);
+  border-radius: 1px;
+  min-height: 2px;
+}
+
+.mini-chart.down .bar {
+  background: var(--chart-down);
+}
+
+/* Action buttons */
+.btn-buy {
+  background-color: var(--increase);
+  color: var(--background);
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.btn-buy:hover {
+  background-color: var(--increase-hover);
+}
+
+.btn-sell {
+  background-color: var(--decrease);
+  color: white;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.btn-sell:hover {
+  background-color: var(--decrease-hover);
+}
+
+/* Percentage badge */
+.pct-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.pct-badge.up {
+  background-color: rgba(47, 227, 172, 0.15);
+  color: var(--increase);
+}
+
+.pct-badge.down {
+  background-color: rgba(236, 57, 122, 0.15);
+  color: var(--decrease);
+}
+
+/* Market name styling */
+.market-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.market-name .ticker {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: monospace;
+}
+
+/* Volume styling */
+.volume {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

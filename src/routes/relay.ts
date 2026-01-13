@@ -18,7 +18,7 @@ import {
   refundUnmatchedDeposit,
 } from '../services/deposit-monitor.js';
 import { getRelayWallet, isWalletInitialized } from '../services/wallet.js';
-import { executeDFlowTrade, getMarketInfo, estimateShares } from '../services/dflow.js';
+import { executeDFlowTrade, getMarketInfo, estimateShares, getMcpWalletAddress, distributeTokensViaMcp } from '../services/dflow.js';
 import type { OrderSubmission } from '../types/relay.js';
 import { DEFAULT_RELAY_CONFIG } from '../types/relay.js';
 
@@ -55,14 +55,29 @@ router.get('/status', async (_req: Request, res: Response) => {
 
 /**
  * GET /relay/deposit-address
- * Get the relay wallet address for USDC deposits
+ * Get the MCP wallet address for USDC deposits
+ * Users deposit here, MCP executes trades, MCP distributes tokens
  */
 router.get('/deposit-address', async (_req: Request, res: Response) => {
   try {
+    // Try MCP wallet first (preferred for trading)
+    const mcpAddress = await getMcpWalletAddress();
+    if (mcpAddress) {
+      res.json({
+        success: true,
+        address: mcpAddress,
+        type: 'mcp',
+        note: 'Send USDC to this address when submitting orders. This wallet handles trading and distribution.',
+      });
+      return;
+    }
+
+    // Fallback to legacy relay wallet
     const wallet = await getRelayWallet();
     res.json({
       success: true,
       address: wallet.getAddress(),
+      type: 'legacy',
       note: 'Send USDC to this address when submitting orders',
     });
   } catch (error) {
@@ -177,8 +192,19 @@ router.post('/order', async (req: Request, res: Response) => {
     // Submit order
     const order = await submitOrder(submission);
 
-    // Get wallet address for deposit
-    const wallet = await getRelayWallet();
+    // Get deposit address (prefer MCP wallet for trading)
+    let depositAddress: string;
+    let walletType: string;
+
+    const mcpAddress = await getMcpWalletAddress();
+    if (mcpAddress) {
+      depositAddress = mcpAddress;
+      walletType = 'mcp';
+    } else {
+      const wallet = await getRelayWallet();
+      depositAddress = wallet.getAddress();
+      walletType = 'legacy';
+    }
 
     res.json({
       success: true,
@@ -190,7 +216,8 @@ router.post('/order', async (req: Request, res: Response) => {
 
       // Deposit instructions
       deposit: {
-        address: wallet.getAddress(),
+        address: depositAddress,
+        walletType,
         amount: submission.usdcAmount,
         memo: order.id, // IMPORTANT: Include this memo in the transaction
         expiresAt: order.depositExpiresAt,
@@ -548,6 +575,40 @@ router.post('/order/:orderId/activate', async (req: Request, res: Response) => {
     success: true,
     message: `Order ${orderId} activated`,
     order,
+  });
+});
+
+/**
+ * POST /relay/wallet/withdraw
+ * Withdraw USDC from relay wallet (admin endpoint)
+ */
+router.post('/wallet/withdraw', async (req: Request, res: Response) => {
+  const { toAddress, amount } = req.body;
+
+  if (!toAddress || !amount) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing required fields: toAddress, amount',
+    });
+    return;
+  }
+
+  const wallet = await getRelayWallet();
+  const result = await wallet.transferUsdc(toAddress, parseFloat(amount));
+
+  if (!result.success) {
+    res.status(500).json({
+      success: false,
+      error: result.error,
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    txSignature: result.signature,
+    toAddress,
+    amount,
   });
 });
 

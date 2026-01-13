@@ -40,6 +40,11 @@ export interface OrderSubmission {
   side: 'YES' | 'NO';
   usdcAmount: string;         // Amount in USDC (e.g., "100.00")
 
+  // Token mints (optional - user can provide for any market)
+  // If not provided, we try to look up from cache or fetch from API
+  yesTokenMint?: string;      // Solana SPL token mint for YES outcome
+  noTokenMint?: string;       // Solana SPL token mint for NO outcome
+
   // Distribution plan (up to 10 destinations, must total 100%)
   // If not provided, defaults to single wallet at 100%
   distribution: DistributionDestination[];
@@ -74,6 +79,10 @@ export interface RelayOrder {
 
   // Legacy single destination (first in distribution array)
   destinationWallet: string;
+
+  // Token mints (user-provided or fetched from API)
+  yesTokenMint?: string;
+  noTokenMint?: string;
 
   // Execution results (filled after trade)
   effectiveUsdcSpent?: string;    // Actual USDC used (may be less due to partial fill)
@@ -114,6 +123,10 @@ export interface RelayBatch {
   // Batch parameters
   marketId: string;
   side: 'YES' | 'NO';
+
+  // Token mints (from first order with mints, or fetched)
+  yesTokenMint?: string;
+  noTokenMint?: string;
 
   // Orders in this batch
   orderIds: string[];
@@ -165,6 +178,9 @@ export interface DFlowExecutionResult {
 
   // Token info for share distribution
   shareTokenMint: string;       // The YES or NO token mint
+
+  // MCP wallet info (when using MCP for execution)
+  mcpWallet?: string;           // MCP wallet that holds the tokens
 
   error?: string;
 }

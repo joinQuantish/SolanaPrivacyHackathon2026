@@ -1,11 +1,15 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { proveRouter } from './routes/prove.js';
 import { verifyRouter } from './routes/verify.js';
 import { poseidonRouter } from './routes/poseidon.js';
 import relayRouter from './routes/relay.js';
+import walletsRouter from './routes/wallets.js';
+import marketsRouter from './routes/markets.js';
 import { getRelayWallet } from './services/wallet.js';
 import { startDepositMonitor } from './services/deposit-monitor.js';
+import { initDatabase } from './services/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +42,12 @@ app.use('/verify', verifyRouter);
 // Full Relay API (order collection, execution, distribution)
 app.use('/relay', relayRouter);
 
+// Wallet Management API (for frontend)
+app.use('/api/wallets', walletsRouter);
+
+// Markets & Trading API (for frontend)
+app.use('/api/markets', marketsRouter);
+
 // Error handling
 app.use(
   (
@@ -58,6 +68,9 @@ app.use(
 app.listen(PORT, async () => {
   console.log(`Obsidian Prover service running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+
+  // Initialize database
+  await initDatabase();
 
   // Start deposit monitor if RPC URL is configured
   const rpcUrl = process.env.SOLANA_RPC_URL;

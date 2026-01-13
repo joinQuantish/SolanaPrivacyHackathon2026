@@ -1,7 +1,8 @@
 /**
  * DFlow/Kalshi Integration Service
  *
- * Real integration with DFlow API for Kalshi prediction markets.
+ * Real integration with DFlow API for Kalshi prediction markets via MCP.
+ * Uses MCP JSON-RPC for quotes and trade execution.
  * NO MOCKS - all functions call real APIs.
  */
 
@@ -17,6 +18,11 @@ import { getRelayWallet } from './wallet.js';
 // API endpoints
 const KALSHI_API = 'https://api.elections.kalshi.com/trade-api/v2';
 const DFLOW_QUOTE_API = 'https://quote-api.dflow.net';
+const DFLOW_DEV_API = 'https://dev-prediction-markets-api.dflow.net/api/v1';
+
+// MCP Server for trading (has working DFlow credentials)
+const MCP_ENDPOINT = process.env.MCP_ENDPOINT || 'https://kalshi-mcp-production-7c2c.up.railway.app/mcp';
+const MCP_API_KEY = process.env.MCP_API_KEY || '';
 
 // Known token mints for popular markets (USDC settlement)
 // These are cached to avoid needing DFlow metadata API
@@ -43,6 +49,59 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 // RPC endpoint
 const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+
+/**
+ * Call MCP tool via JSON-RPC
+ */
+async function callMcpTool<T>(toolName: string, args: Record<string, unknown>): Promise<T | null> {
+  if (!MCP_API_KEY) {
+    console.error(`[MCP] No API key configured. Set MCP_API_KEY environment variable.`);
+    return null;
+  }
+
+  try {
+    const response = await fetch(MCP_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': MCP_API_KEY,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: toolName,
+          arguments: args,
+        },
+        id: Date.now(),
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[MCP] Request failed: ${response.status}`);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.error) {
+      console.error(`[MCP] Tool error:`, result.error);
+      return null;
+    }
+
+    // Parse the nested JSON in content[0].text
+    const textContent = result.result?.content?.[0]?.text;
+    if (!textContent) {
+      console.error(`[MCP] No content in response`);
+      return null;
+    }
+
+    return JSON.parse(textContent) as T;
+  } catch (error) {
+    console.error(`[MCP] Error calling ${toolName}:`, error);
+    return null;
+  }
+}
 
 /**
  * Market info from Kalshi/DFlow
@@ -95,13 +154,55 @@ interface DFlowSwapResponse {
 }
 
 /**
- * Get market info from Kalshi API with cached token mints
+ * Get market info from DFlow dev API (has token mints) with Kalshi fallback
  */
 export async function getMarketInfo(marketId: string): Promise<MarketInfo | null> {
-  console.log(`[Kalshi] Fetching market info for ${marketId}...`);
+  console.log(`[DFlow] Fetching market info for ${marketId}...`);
+
+  // Extract event ticker from market ID (e.g., KXSB-26-BUF -> KXSB-26)
+  const parts = marketId.split('-');
+  const eventTicker = parts.slice(0, 2).join('-');
 
   try {
-    // Fetch from Kalshi API
+    // Try DFlow dev API first (has token mints)
+    const dflowResponse = await fetch(`${DFLOW_DEV_API}/event/${eventTicker}?withNestedMarkets=true`);
+
+    if (dflowResponse.ok) {
+      const eventData = await dflowResponse.json();
+      const market = eventData.markets?.find((m: { ticker: string }) => m.ticker === marketId);
+
+      if (market) {
+        // Get USDC account token mints (EPjFWdd5... is USDC mint)
+        const usdcAccount = market.accounts?.['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'];
+
+        const yesPrice = parseFloat(market.yesAsk || market.yesBid || '0.50');
+        const noPrice = parseFloat(market.noAsk || market.noBid || '0.50');
+
+        console.log(`[DFlow] Market: ${market.title || marketId}`);
+        console.log(`[DFlow] YES price: $${yesPrice}, NO price: $${noPrice}`);
+        console.log(`[DFlow] Status: ${market.status}`);
+
+        if (usdcAccount) {
+          console.log(`[DFlow] YES mint: ${usdcAccount.yesMint}`);
+          console.log(`[DFlow] NO mint: ${usdcAccount.noMint}`);
+          console.log(`[DFlow] Initialized: ${usdcAccount.isInitialized}`);
+        }
+
+        return {
+          ticker: market.ticker,
+          title: market.title || `Market ${marketId}`,
+          yesPrice,
+          noPrice,
+          yesTokenMint: usdcAccount?.yesMint || KNOWN_TOKEN_MINTS[marketId]?.yesMint || '',
+          noTokenMint: usdcAccount?.noMint || KNOWN_TOKEN_MINTS[marketId]?.noMint || '',
+          status: market.status as 'active' | 'inactive' | 'finalized',
+          isInitialized: usdcAccount?.isInitialized ?? true,
+        };
+      }
+    }
+
+    // Fallback to Kalshi API
+    console.log(`[DFlow] Falling back to Kalshi API...`);
     const response = await fetch(`${KALSHI_API}/markets/${marketId}`);
 
     if (!response.ok) {
@@ -117,11 +218,10 @@ export async function getMarketInfo(marketId: string): Promise<MarketInfo | null
       return null;
     }
 
-    // Get token mints from cache or use provided mints
+    // Get token mints from cache
     const tokenMints = KNOWN_TOKEN_MINTS[marketId];
     if (!tokenMints) {
       console.warn(`[Kalshi] No cached token mints for ${marketId}`);
-      console.warn(`[Kalshi] Add token mints to KNOWN_TOKEN_MINTS or provide via order`);
     }
 
     const yesPrice = parseFloat(market.yes_ask_dollars || market.yes_bid_dollars || '0.50');
@@ -131,11 +231,6 @@ export async function getMarketInfo(marketId: string): Promise<MarketInfo | null
     console.log(`[Kalshi] YES price: $${yesPrice}, NO price: $${noPrice}`);
     console.log(`[Kalshi] Status: ${market.status}`);
 
-    if (tokenMints) {
-      console.log(`[Kalshi] YES mint: ${tokenMints.yesMint}`);
-      console.log(`[Kalshi] NO mint: ${tokenMints.noMint}`);
-    }
-
     return {
       ticker: market.ticker || marketId,
       title: market.subtitle || `Market ${marketId}`,
@@ -144,27 +239,68 @@ export async function getMarketInfo(marketId: string): Promise<MarketInfo | null
       yesTokenMint: tokenMints?.yesMint || '',
       noTokenMint: tokenMints?.noMint || '',
       status: market.status as 'active' | 'inactive' | 'finalized',
-      isInitialized: true, // Assume initialized for known markets
+      isInitialized: true,
     };
   } catch (error) {
-    console.error(`[Kalshi] Error fetching market:`, error);
+    console.error(`[DFlow/Kalshi] Error fetching market:`, error);
     return null;
   }
 }
 
 /**
- * Get a quote from DFlow for swapping USDC to prediction tokens
+ * MCP Quote Response
+ */
+interface McpQuoteResponse {
+  quote: DFlowQuote & {
+    transaction?: string;
+    lastValidBlockHeight?: number;
+    prioritizationFeeLamports?: number;
+    computeUnitLimit?: number;
+  };
+}
+
+/**
+ * MCP Buy Response
+ */
+interface McpBuyResponse {
+  message: string;
+  quote: DFlowQuote & { transaction?: string };
+  txSignature: string;
+  status: string;
+}
+
+/**
+ * Get a quote from MCP (uses DFlow internally)
  */
 async function getQuote(
   inputMint: string,
   outputMint: string,
   amount: number,
   slippageBps: number = 200
-): Promise<DFlowQuote | null> {
-  console.log(`[DFlow] Getting quote: ${amount} USDC -> ${outputMint.slice(0, 8)}...`);
+): Promise<(DFlowQuote & { transaction?: string }) | null> {
+  console.log(`[MCP] Getting quote: ${amount} USDC -> ${outputMint.slice(0, 8)}...`);
 
   // Convert to smallest units (USDC has 6 decimals)
   const amountScaled = Math.floor(amount * 1e6);
+
+  // Try MCP first (has working DFlow credentials)
+  if (MCP_API_KEY) {
+    const mcpResult = await callMcpTool<McpQuoteResponse>('kalshi_get_quote', {
+      inputMint,
+      outputMint,
+      amount: amountScaled,
+      slippageBps,
+    });
+
+    if (mcpResult?.quote) {
+      console.log(`[MCP] Quote received: ${mcpResult.quote.outAmount} tokens for ${mcpResult.quote.inAmount} USDC`);
+      console.log(`[MCP] Price impact: ${mcpResult.quote.priceImpactPct}%`);
+      return mcpResult.quote;
+    }
+  }
+
+  // Fallback to direct DFlow API (may not work without valid key)
+  console.log(`[MCP] Falling back to direct DFlow API...`);
 
   const params = new URLSearchParams({
     inputMint,
@@ -248,18 +384,32 @@ async function createSwap(
 }
 
 /**
- * Execute a batch trade on DFlow
+ * Execute a batch trade via MCP (uses DFlow internally)
  *
- * This is the main integration point with DFlow/Kalshi.
- * It takes a batch of orders and executes them as a single trade.
+ * This is the main integration point with DFlow/Kalshi via MCP.
+ * MCP handles wallet management, signing, and transaction submission.
  */
 export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecutionResult> {
   console.log(`\n========================================`);
-  console.log(`[DFlow] Executing REAL trade for batch ${batch.id}`);
-  console.log(`[DFlow] Market: ${batch.marketId}`);
-  console.log(`[DFlow] Side: ${batch.side}`);
-  console.log(`[DFlow] Total USDC: ${batch.totalUsdcCommitted}`);
+  console.log(`[MCP] Executing REAL trade for batch ${batch.id}`);
+  console.log(`[MCP] Market: ${batch.marketId}`);
+  console.log(`[MCP] Side: ${batch.side}`);
+  console.log(`[MCP] Total USDC: ${batch.totalUsdcCommitted}`);
   console.log(`========================================\n`);
+
+  // Check if MCP is configured
+  if (!MCP_API_KEY) {
+    return {
+      success: false,
+      usdcSpent: '0',
+      sharesReceived: '0',
+      averagePrice: '0',
+      fillPercentage: 0,
+      partialFill: false,
+      shareTokenMint: '',
+      error: 'MCP_API_KEY not configured. Set environment variable.',
+    };
+  }
 
   // Step 1: Get market info
   const market = await getMarketInfo(batch.marketId);
@@ -290,7 +440,12 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
   }
 
   // Determine token mint based on side
-  const outputMint = batch.side === 'YES' ? market.yesTokenMint : market.noTokenMint;
+  let outputMint: string;
+  if (batch.side === 'YES') {
+    outputMint = batch.yesTokenMint || market.yesTokenMint;
+  } else {
+    outputMint = batch.noTokenMint || market.noTokenMint;
+  }
   const totalUsdc = parseFloat(batch.totalUsdcCommitted);
 
   if (!outputMint) {
@@ -302,20 +457,19 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: `No token mint found for ${batch.marketId} ${batch.side}. Add to KNOWN_TOKEN_MINTS in dflow.ts`,
+      error: `No token mint found for ${batch.marketId} ${batch.side}`,
     };
   }
 
-  console.log(`[DFlow] Output mint: ${outputMint}`);
+  console.log(`[MCP] Output mint: ${outputMint}`);
 
-  // Step 2: Get relay wallet
-  const wallet = await getRelayWallet();
-  const walletAddress = wallet.getAddress();
-  console.log(`[DFlow] Relay wallet: ${walletAddress}`);
+  // Step 2: Check MCP wallet balance
+  const balanceResult = await callMcpTool<{
+    publicKey: string;
+    balances: { sol: number; usdc: number };
+  }>('kalshi_get_balances', {});
 
-  // Check wallet balance
-  const walletInfo = await wallet.getInfo();
-  if (walletInfo.usdcBalance < totalUsdc) {
+  if (!balanceResult) {
     return {
       success: false,
       usdcSpent: '0',
@@ -324,15 +478,15 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: `Insufficient USDC balance: have ${walletInfo.usdcBalance}, need ${totalUsdc}`,
+      error: 'Failed to get MCP wallet balance',
     };
   }
 
-  console.log(`[DFlow] Wallet USDC balance: $${walletInfo.usdcBalance}`);
+  console.log(`[MCP] Wallet: ${balanceResult.publicKey}`);
+  console.log(`[MCP] USDC balance: $${balanceResult.balances.usdc}`);
+  console.log(`[MCP] SOL balance: ${balanceResult.balances.sol}`);
 
-  // Step 3: Get quote from DFlow
-  const quote = await getQuote(USDC_MINT, outputMint, totalUsdc);
-  if (!quote) {
+  if (balanceResult.balances.usdc < totalUsdc) {
     return {
       success: false,
       usdcSpent: '0',
@@ -341,13 +495,24 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: 'Failed to get quote from DFlow',
+      error: `Insufficient MCP USDC balance: have $${balanceResult.balances.usdc}, need $${totalUsdc}`,
     };
   }
 
-  // Step 4: Create swap transaction
-  const swapResponse = await createSwap(quote, walletAddress);
-  if (!swapResponse) {
+  // Step 3: Execute trade via MCP
+  console.log(`[MCP] Executing ${batch.side} trade...`);
+
+  const toolName = batch.side === 'YES' ? 'kalshi_buy_yes' : 'kalshi_buy_no';
+  const mintParam = batch.side === 'YES' ? 'yesOutcomeMint' : 'noOutcomeMint';
+
+  const tradeResult = await callMcpTool<McpBuyResponse>(toolName, {
+    marketTicker: batch.marketId,
+    [mintParam]: outputMint,
+    usdcAmount: totalUsdc,
+    slippageBps: 300, // 3% slippage
+  });
+
+  if (!tradeResult || !tradeResult.txSignature) {
     return {
       success: false,
       usdcSpent: '0',
@@ -356,100 +521,107 @@ export async function executeDFlowTrade(batch: RelayBatch): Promise<DFlowExecuti
       fillPercentage: 0,
       partialFill: false,
       shareTokenMint: '',
-      error: 'Failed to create swap transaction',
+      error: `MCP trade failed: ${tradeResult?.message || 'Unknown error'}`,
     };
   }
 
-  // Step 5: Sign and send transaction
-  console.log(`[DFlow] Signing and sending transaction...`);
+  console.log(`[MCP] Trade executed!`);
+  console.log(`[MCP] TX Signature: ${tradeResult.txSignature}`);
 
-  try {
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+  // Calculate results from quote
+  const usdcSpent = parseFloat(tradeResult.quote?.inAmount || '0') / 1e6;
+  const sharesReceived = parseFloat(tradeResult.quote?.outAmount || '0') / 1e6;
+  const avgPrice = sharesReceived > 0 ? usdcSpent / sharesReceived : 0;
 
-    // Decode the transaction
-    const txBuffer = Buffer.from(swapResponse.swapTransaction, 'base64');
+  console.log(`[MCP] USDC spent: $${usdcSpent}`);
+  console.log(`[MCP] Shares received: ${sharesReceived}`);
+  console.log(`[MCP] Average price: $${avgPrice.toFixed(4)}`);
 
-    let signature: string;
+  return {
+    success: true,
+    orderId: `mcp-${batch.id}-${Date.now()}`,
+    txSignature: tradeResult.txSignature,
+    usdcSpent: usdcSpent.toString(),
+    sharesReceived: sharesReceived.toString(),
+    averagePrice: avgPrice.toString(),
+    fillPercentage: 100,
+    partialFill: false,
+    shareTokenMint: outputMint,
+    mcpWallet: balanceResult.publicKey, // Include MCP wallet for distribution
+  };
+}
 
-    // Try as versioned transaction first
-    try {
-      const versionedTx = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
-      console.log(`[DFlow] Transaction type: Versioned`);
+/**
+ * Get MCP wallet address for deposits
+ */
+export async function getMcpWalletAddress(): Promise<string | null> {
+  const result = await callMcpTool<{ publicKey: string }>('kalshi_get_deposit_address', {});
+  return result?.publicKey || null;
+}
 
-      // Sign the versioned transaction
-      const signedTx = wallet.signVersionedTransaction(versionedTx);
-      signature = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
-    } catch (versionedError) {
-      console.log(`[DFlow] Trying legacy transaction format...`);
-      // Fallback to legacy transaction
-      const legacyTx = Transaction.from(txBuffer);
-      legacyTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      const signedTx = wallet.signTransaction(legacyTx);
-      signature = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
+/**
+ * Distribute tokens from MCP wallet to destination wallets
+ */
+export async function distributeTokensViaMcp(
+  tokenMint: string,
+  distributions: Array<{ wallet: string; amount: number }>
+): Promise<Array<{ wallet: string; success: boolean; txSignature?: string; error?: string }>> {
+  const results: Array<{ wallet: string; success: boolean; txSignature?: string; error?: string }> = [];
+
+  for (const dist of distributions) {
+    console.log(`[MCP] Sending ${dist.amount} tokens to ${dist.wallet.slice(0, 8)}...`);
+
+    const sendResult = await callMcpTool<{
+      success: boolean;
+      txSignature?: string;
+      error?: string;
+    }>('kalshi_send_token', {
+      toAddress: dist.wallet,
+      mintAddress: tokenMint,
+      amount: dist.amount,
+      decimals: 6, // Prediction tokens typically have 6 decimals
+    });
+
+    if (sendResult?.success && sendResult.txSignature) {
+      console.log(`[MCP] Sent to ${dist.wallet.slice(0, 8)}: ${sendResult.txSignature}`);
+      results.push({ wallet: dist.wallet, success: true, txSignature: sendResult.txSignature });
+    } else {
+      console.error(`[MCP] Failed to send to ${dist.wallet.slice(0, 8)}: ${sendResult?.error || 'Unknown error'}`);
+      results.push({ wallet: dist.wallet, success: false, error: sendResult?.error || 'Unknown error' });
     }
+  }
 
-    console.log(`[DFlow] Transaction sent: ${signature}`);
+  return results;
+}
 
-    // Wait for confirmation
-    console.log(`[DFlow] Waiting for confirmation...`);
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+/**
+ * Refund USDC via MCP
+ */
+export async function refundViaUsdc(
+  toAddress: string,
+  amount: number
+): Promise<{ success: boolean; txSignature?: string; error?: string }> {
+  console.log(`[MCP] Refunding ${amount} USDC to ${toAddress.slice(0, 8)}...`);
 
-    if (confirmation.value.err) {
-      console.error(`[DFlow] Transaction failed:`, confirmation.value.err);
-      return {
-        success: false,
-        usdcSpent: '0',
-        sharesReceived: '0',
-        averagePrice: '0',
-        fillPercentage: 0,
-        partialFill: false,
-        shareTokenMint: '',
-        error: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
-      };
-    }
+  const sendResult = await callMcpTool<{
+    success: boolean;
+    txSignature?: string;
+    error?: string;
+  }>('kalshi_send_usdc', {
+    toAddress,
+    amount,
+  });
 
-    console.log(`[DFlow] Transaction confirmed!`);
-
-    // Calculate results
-    const usdcSpent = parseFloat(quote.inAmount) / 1e6;
-    const sharesReceived = parseFloat(quote.outAmount) / 1e6; // Assuming 6 decimals
-    const avgPrice = usdcSpent / sharesReceived;
-
-    console.log(`[DFlow] USDC spent: $${usdcSpent}`);
-    console.log(`[DFlow] Shares received: ${sharesReceived}`);
-    console.log(`[DFlow] Average price: $${avgPrice.toFixed(4)}`);
-
-    return {
-      success: true,
-      orderId: `dflow-${batch.id}-${Date.now()}`,
-      txSignature: signature,
-      usdcSpent: usdcSpent.toString(),
-      sharesReceived: sharesReceived.toString(),
-      averagePrice: avgPrice.toString(),
-      fillPercentage: 100,
-      partialFill: false,
-      shareTokenMint: outputMint,
-    };
-  } catch (error) {
-    console.error(`[DFlow] Transaction error:`, error);
-    return {
-      success: false,
-      usdcSpent: '0',
-      sharesReceived: '0',
-      averagePrice: '0',
-      fillPercentage: 0,
-      partialFill: false,
-      shareTokenMint: '',
-      error: error instanceof Error ? error.message : 'Transaction failed',
-    };
+  if (sendResult?.success && sendResult.txSignature) {
+    console.log(`[MCP] Refund sent to ${toAddress.slice(0, 8)}: ${sendResult.txSignature}`);
+    return { success: true, txSignature: sendResult.txSignature };
+  } else {
+    console.error(`[MCP] Refund failed to ${toAddress.slice(0, 8)}: ${sendResult?.error || 'Unknown error'}`);
+    return { success: false, error: sendResult?.error || 'Unknown error' };
   }
 }
+
+// Note: Legacy direct DFlow execution removed - now using MCP for all trades
 
 /**
  * Check if a market is initialized on-chain

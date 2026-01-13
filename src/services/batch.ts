@@ -166,6 +166,9 @@ export async function submitOrder(
     commitmentHash,
     depositExpiresAt,
     createdAt: new Date(),
+    // Store user-provided token mints (if any)
+    yesTokenMint: submission.yesTokenMint,
+    noTokenMint: submission.noTokenMint,
   };
 
   // Save order
@@ -177,8 +180,18 @@ export async function submitOrder(
     parseFloat(batch.totalUsdcCommitted) + parseFloat(submission.usdcAmount)
   ).toString();
 
+  // Store token mints from order on batch (first order with mints wins)
+  if (submission.yesTokenMint && !batch.yesTokenMint) {
+    batch.yesTokenMint = submission.yesTokenMint;
+  }
+  if (submission.noTokenMint && !batch.noTokenMint) {
+    batch.noTokenMint = submission.noTokenMint;
+  }
+
   console.log(`Order ${order.id} added to batch ${batch.id}. Batch now has ${batch.orderIds.length} orders.`);
   console.log(`  Distribution: ${distribution.map(d => `${d.wallet.slice(0, 8)}...(${d.percentage / 100}%)`).join(', ')}`);
+  if (batch.yesTokenMint) console.log(`  YES mint: ${batch.yesTokenMint}`);
+  if (batch.noTokenMint) console.log(`  NO mint: ${batch.noTokenMint}`);
 
   // Check if batch is ready
   if (batch.orderIds.length >= config.maxBatchSize) {
@@ -244,12 +257,15 @@ export interface ExtendedDistributionPlan extends DistributionPlan {
 /**
  * Calculate distribution plan based on actual execution
  * Now handles multi-wallet distribution per order
+ * IMPORTANT: Only distributes to FUNDED orders (status === 'pending' or later)
  */
 export function calculateDistribution(
   batch: RelayBatch,
   executionResult: DFlowExecutionResult
 ): ExtendedDistributionPlan {
-  const batchOrders = getBatchOrders(batch.id);
+  // Only include funded orders in distribution
+  const allOrders = getBatchOrders(batch.id);
+  const batchOrders = allOrders.filter(o => o.status !== 'pending_deposit' && o.status !== 'expired');
 
   const totalCommitted = parseFloat(batch.totalUsdcCommitted);
   const actualSpent = parseFloat(executionResult.usdcSpent);
@@ -306,12 +322,15 @@ export function calculateDistribution(
 
 /**
  * Generate ZK proof for a batch execution
+ * IMPORTANT: Only includes FUNDED orders in the proof
  */
 export async function generateBatchProof(
   batch: RelayBatch,
   executionResult: DFlowExecutionResult
 ): Promise<{ proof: string; publicInputs: string[]; verified: boolean }> {
-  const batchOrders = getBatchOrders(batch.id);
+  // Only include funded orders in proof
+  const allOrders = getBatchOrders(batch.id);
+  const batchOrders = allOrders.filter(o => o.status !== 'pending_deposit' && o.status !== 'expired');
   const distribution = calculateDistribution(batch, executionResult);
 
   // Build merkle tree from commitment hashes
@@ -384,6 +403,7 @@ export async function generateBatchProof(
 /**
  * Execute a batch (full flow)
  * This is the main orchestration function
+ * IMPORTANT: Only executes FUNDED orders (status === 'pending')
  */
 export async function executeBatch(
   batchId: string,
@@ -402,6 +422,23 @@ export async function executeBatch(
   if (batch.status !== 'ready') {
     return { success: false, batch, error: `Batch status is ${batch.status}, not ready` };
   }
+
+  // Get only FUNDED orders (status === 'pending' means deposit confirmed)
+  const allOrders = getBatchOrders(batch.id);
+  const fundedOrders = allOrders.filter(o => o.status === 'pending');
+
+  if (fundedOrders.length === 0) {
+    return { success: false, batch, error: 'No funded orders in batch' };
+  }
+
+  // Calculate actual USDC to trade (only from funded orders)
+  const fundedUsdcTotal = fundedOrders.reduce((sum, o) => sum + parseFloat(o.usdcAmount), 0);
+
+  console.log(`Batch ${batchId}: ${fundedOrders.length}/${allOrders.length} orders funded, total USDC: $${fundedUsdcTotal}`);
+
+  // Update batch to reflect only funded amounts for execution
+  const originalTotalCommitted = batch.totalUsdcCommitted;
+  batch.totalUsdcCommitted = fundedUsdcTotal.toString();
 
   try {
     // 1. Execute on DFlow
@@ -442,8 +479,6 @@ export async function executeBatch(
     console.log(`Distributing shares for batch ${batchId}...`);
     batch.status = 'distributing';
 
-    const wallet = await getRelayWallet();
-
     // First, update order info from allocations
     for (const allocation of distribution.allocations) {
       const order = orders.get(allocation.orderId)!;
@@ -457,43 +492,94 @@ export async function executeBatch(
       order.distributionResults = []; // Initialize for tracking per-wallet results
     }
 
-    // Distribute shares to all wallets (using walletAllocations for multi-wallet support)
-    for (const walletAlloc of distribution.walletAllocations) {
-      const order = orders.get(walletAlloc.orderId)!;
+    // Distribute shares - use MCP if trade was via MCP, otherwise legacy wallet
+    if (executionResult.mcpWallet) {
+      // MCP distribution - import dynamically to avoid circular deps
+      const { distributeTokensViaMcp } = await import('./dflow.js');
 
-      // Transfer shares to this wallet
-      if (parseFloat(walletAlloc.sharesAmount) > 0) {
-        console.log(`Transferring ${walletAlloc.sharesAmount} shares (${walletAlloc.percentage / 100}%) to ${walletAlloc.destinationWallet}`);
-        const shareResult = await wallet.transferToken(
-          executionResult.shareTokenMint,
-          walletAlloc.destinationWallet,
-          parseFloat(walletAlloc.sharesAmount),
-          6 // Assuming 6 decimals for share tokens
-        );
+      // Build distribution list for MCP
+      const mcpDistributions = distribution.walletAllocations
+        .filter(wa => parseFloat(wa.sharesAmount) > 0)
+        .map(wa => ({
+          wallet: wa.destinationWallet,
+          amount: parseFloat(wa.sharesAmount),
+        }));
 
-        // Track per-wallet distribution results
-        order.distributionResults!.push({
-          wallet: walletAlloc.destinationWallet,
-          sharesAmount: walletAlloc.sharesAmount,
-          txSignature: shareResult.success ? shareResult.signature : undefined,
-        });
+      console.log(`Distributing via MCP to ${mcpDistributions.length} wallets...`);
+      const mcpResults = await distributeTokensViaMcp(
+        executionResult.shareTokenMint,
+        mcpDistributions
+      );
+
+      // Track results
+      for (const result of mcpResults) {
+        const walletAlloc = distribution.walletAllocations.find(wa => wa.destinationWallet === result.wallet);
+        if (walletAlloc) {
+          const order = orders.get(walletAlloc.orderId)!;
+          order.distributionResults!.push({
+            wallet: result.wallet,
+            sharesAmount: walletAlloc.sharesAmount,
+            txSignature: result.success ? result.txSignature : undefined,
+          });
+          if (!result.success) {
+            console.error(`MCP distribution failed for ${result.wallet}: ${result.error}`);
+          }
+        }
+      }
+    } else {
+      // Legacy wallet distribution
+      const wallet = await getRelayWallet();
+
+      for (const walletAlloc of distribution.walletAllocations) {
+        const order = orders.get(walletAlloc.orderId)!;
+
+        if (parseFloat(walletAlloc.sharesAmount) > 0) {
+          console.log(`Transferring ${walletAlloc.sharesAmount} shares (${walletAlloc.percentage / 100}%) to ${walletAlloc.destinationWallet}`);
+          const shareResult = await wallet.transferToken(
+            executionResult.shareTokenMint,
+            walletAlloc.destinationWallet,
+            parseFloat(walletAlloc.sharesAmount),
+            6
+          );
+
+          order.distributionResults!.push({
+            wallet: walletAlloc.destinationWallet,
+            sharesAmount: walletAlloc.sharesAmount,
+            txSignature: shareResult.success ? shareResult.signature : undefined,
+          });
+        }
       }
     }
 
-    // Handle refunds (sent to primary wallet only)
+    // Handle refunds (sent to primary wallet only) - use MCP if available
     for (const allocation of distribution.allocations) {
       const order = orders.get(allocation.orderId)!;
 
-      // Transfer refund to primary wallet if any
       if (parseFloat(allocation.refundAmount) > 0) {
         console.log(`Refunding ${allocation.refundAmount} USDC to ${allocation.destinationWallet}`);
-        const refundResult = await wallet.transferUsdc(
-          allocation.destinationWallet,
-          parseFloat(allocation.refundAmount)
-        );
-        if (refundResult.success) {
-          order.refundTxSignature = refundResult.signature;
-          order.refundWallet = allocation.destinationWallet;
+
+        if (executionResult.mcpWallet) {
+          // MCP refund
+          const { refundViaUsdc } = await import('./dflow.js');
+          const refundResult = await refundViaUsdc(
+            allocation.destinationWallet,
+            parseFloat(allocation.refundAmount)
+          );
+          if (refundResult.success) {
+            order.refundTxSignature = refundResult.txSignature;
+            order.refundWallet = allocation.destinationWallet;
+          }
+        } else {
+          // Legacy wallet refund
+          const wallet = await getRelayWallet();
+          const refundResult = await wallet.transferUsdc(
+            allocation.destinationWallet,
+            parseFloat(allocation.refundAmount)
+          );
+          if (refundResult.success) {
+            order.refundTxSignature = refundResult.signature;
+            order.refundWallet = allocation.destinationWallet;
+          }
         }
       }
 
