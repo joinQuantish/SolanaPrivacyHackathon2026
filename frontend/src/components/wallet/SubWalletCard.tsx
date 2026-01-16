@@ -10,12 +10,21 @@ interface SubWalletCardProps {
 }
 
 export function SubWalletCard({ wallet }: SubWalletCardProps) {
-  const { balances, refreshBalances, deleteSubWallet } = useWalletStore();
+  const { balances, holdings, refreshBalances, refreshHoldings, deleteSubWallet } = useWalletStore();
   const [showTransfer, setShowTransfer] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showHoldings, setShowHoldings] = useState(false);
 
   const walletBalances = balances[wallet.publicKey];
+  const walletHoldings = holdings[wallet.publicKey] || [];
+
+  // Refresh holdings on first expand
+  React.useEffect(() => {
+    if (showHoldings && walletHoldings.length === 0) {
+      refreshHoldings(wallet.publicKey);
+    }
+  }, [showHoldings, wallet.publicKey, walletHoldings.length, refreshHoldings]);
 
   const copyAddress = async () => {
     await navigator.clipboard.writeText(wallet.publicKey);
@@ -64,6 +73,55 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
               ${walletBalances?.usdc?.toFixed(2) ?? '—'}
             </span>
           </div>
+
+          {/* Holdings toggle */}
+          <button
+            onClick={() => setShowHoldings(!showHoldings)}
+            className="w-full flex items-center justify-between py-1 text-sm text-obsidian-400 hover:text-obsidian-200"
+          >
+            <span className="flex items-center gap-1">
+              <span>📊</span>
+              Holdings
+              {walletHoldings.length > 0 && (
+                <span className="text-xs text-accent-green">({walletHoldings.length})</span>
+              )}
+            </span>
+            <svg
+              className={`w-3 h-3 transition-transform ${showHoldings ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showHoldings && (
+            <div className="pl-2 border-l-2 border-obsidian-700 space-y-1.5">
+              {walletHoldings.length > 0 ? (
+                walletHoldings.map((holding, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs">
+                    <span className="text-obsidian-400 truncate max-w-[100px]" title={holding.mint}>
+                      {holding.symbol || holding.mint.slice(0, 8) + '...'}
+                    </span>
+                    <span className="text-obsidian-200 font-medium">
+                      {holding.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-obsidian-500 italic">
+                  No positions yet
+                </p>
+              )}
+              <button
+                onClick={() => refreshHoldings(wallet.publicKey)}
+                className="text-xs text-[rgb(56,190,231)] hover:underline"
+              >
+                Refresh
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mb-3">

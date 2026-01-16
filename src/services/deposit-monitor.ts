@@ -5,6 +5,7 @@ import {
   ConfirmedSignatureInfo,
 } from '@solana/web3.js';
 import { getRelayWallet } from './wallet.js';
+import { getMcpWalletAddress } from './dflow.js';
 import { getOrder, activateOrder, refundOrder } from './batch.js';
 
 // USDC mint on mainnet
@@ -30,44 +31,97 @@ interface UnmatchedDeposit {
 const unmatchedDeposits: Map<string, UnmatchedDeposit> = new Map();
 
 /**
- * Parse memo from transaction
+ * Parsed memo structure for OBSIDIAN orders
  */
-function parseMemo(tx: ParsedTransactionWithMeta): string | undefined {
-  if (!tx.meta?.logMessages) return undefined;
+interface ParsedOrderMemo {
+  raw: string;
+  action?: 'buy_yes' | 'buy_no';
+  marketTicker?: string;
+  outcomeMint?: string;
+  amount?: number;
+  slippageBps?: number;
+  destinationWallets?: string[]; // Multiple wallets separated by ; in memo
+}
 
-  for (const log of tx.meta.logMessages) {
-    // Memo program logs the memo content
-    if (log.includes('Program log: Memo')) {
-      const match = log.match(/Memo \(len \d+\): "(.+)"/);
-      if (match) return match[1];
-    }
-    // Also check for raw memo data
-    if (log.startsWith('Program log: ') && !log.includes('Instruction:')) {
-      const memoContent = log.replace('Program log: ', '').trim();
-      // Check if it looks like an order ID (UUID format)
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memoContent)) {
-        return memoContent;
+/**
+ * Parse memo from transaction
+ * Supports both:
+ * - New format: OBSIDIAN|action|marketTicker|outcomeMint|amount|slippageBps|destinationWallet
+ * - Legacy format: UUID order IDs
+ */
+function parseMemo(tx: ParsedTransactionWithMeta): ParsedOrderMemo | undefined {
+  let memoContent: string | undefined;
+
+  // First, try to extract memo from logs
+  if (tx.meta?.logMessages) {
+    for (const log of tx.meta.logMessages) {
+      // Memo program logs the memo content
+      if (log.includes('Program log: Memo')) {
+        const match = log.match(/Memo \(len \d+\): "(.+)"/);
+        if (match) {
+          memoContent = match[1];
+          break;
+        }
       }
     }
   }
 
   // Check instruction data for memo program
-  if (tx.transaction.message.instructions) {
+  if (!memoContent && tx.transaction.message.instructions) {
     for (const ix of tx.transaction.message.instructions) {
       if ('programId' in ix && ix.programId.equals(MEMO_PROGRAM_ID)) {
         if ('data' in ix && typeof ix.data === 'string') {
           try {
             // Memo data is UTF-8 encoded
-            return Buffer.from(ix.data, 'base64').toString('utf-8');
+            memoContent = Buffer.from(ix.data, 'base64').toString('utf-8');
+            break;
           } catch {
-            return ix.data;
+            memoContent = ix.data;
+            break;
           }
         }
       }
     }
   }
 
-  return undefined;
+  if (!memoContent) return undefined;
+
+  // Parse OBSIDIAN format: OBSIDIAN|action|marketTicker|outcomeMint|amount|slippageBps|destinationWallets
+  // destinationWallets can be multiple addresses separated by semicolons
+  if (memoContent.startsWith('OBSIDIAN|')) {
+    const parts = memoContent.split('|');
+    if (parts.length >= 7) {
+      // Split destination wallets by semicolon (supports multiple)
+      const destinationWallets = parts[6].split(';').filter(w => w.length > 0);
+
+      console.log(`[Deposit Monitor] Parsed OBSIDIAN memo:`, {
+        action: parts[1],
+        marketTicker: parts[2],
+        outcomeMint: parts[3].slice(0, 8) + '...',
+        amount: parts[4],
+        slippageBps: parts[5],
+        destinationWallets: destinationWallets.length,
+      });
+
+      return {
+        raw: memoContent,
+        action: parts[1] as 'buy_yes' | 'buy_no',
+        marketTicker: parts[2],
+        outcomeMint: parts[3],
+        amount: parseFloat(parts[4]),
+        slippageBps: parseInt(parts[5], 10),
+        destinationWallets,
+      };
+    }
+  }
+
+  // Legacy UUID format
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memoContent)) {
+    return { raw: memoContent };
+  }
+
+  // Return raw memo for any other format
+  return { raw: memoContent };
 }
 
 /**
@@ -129,6 +183,93 @@ function extractUsdcTransfer(
 }
 
 /**
+ * Execute trade via Kalshi MCP and distribute shares to multiple wallets
+ */
+async function executeTradeAndDistribute(
+  memo: ParsedOrderMemo,
+  usdcAmount: number,
+  depositSignature: string
+): Promise<{ success: boolean; tradeTx?: string; distributeTxs?: string[]; error?: string }> {
+  // Dynamic imports to avoid circular dependencies
+  const { buyYes, buyNo } = await import('./mcp-wallet.js');
+  const { distributeTokensViaMcp } = await import('./dflow.js');
+
+  if (!memo.action || !memo.marketTicker || !memo.outcomeMint || !memo.destinationWallets || memo.destinationWallets.length === 0) {
+    return { success: false, error: 'Missing required order details in memo' };
+  }
+
+  console.log(`[Trade] Executing ${memo.action} for ${usdcAmount} USDC on ${memo.marketTicker}`);
+  console.log(`[Trade] Will distribute to ${memo.destinationWallets.length} wallet(s)`);
+
+  // Execute the trade
+  let tradeResult;
+  if (memo.action === 'buy_yes') {
+    tradeResult = await buyYes(
+      memo.marketTicker,
+      memo.outcomeMint,
+      usdcAmount,
+      memo.slippageBps || 100
+    );
+  } else {
+    tradeResult = await buyNo(
+      memo.marketTicker,
+      memo.outcomeMint,
+      usdcAmount,
+      memo.slippageBps || 100
+    );
+  }
+
+  if (!tradeResult.success) {
+    console.error(`[Trade] Failed:`, tradeResult.error);
+    return { success: false, error: tradeResult.error };
+  }
+
+  console.log(`[Trade] Success! TX: ${tradeResult.txSignature}, shares: ${tradeResult.sharesReceived}`);
+
+  // Distribute shares evenly to all destination wallets
+  if (tradeResult.sharesReceived && memo.destinationWallets.length > 0) {
+    const sharesPerWallet = tradeResult.sharesReceived / memo.destinationWallets.length;
+
+    console.log(`[Trade] Distributing ${sharesPerWallet.toFixed(4)} shares to each of ${memo.destinationWallets.length} wallets`);
+
+    // Build distribution list
+    const distributions = memo.destinationWallets.map(wallet => ({
+      wallet,
+      amount: sharesPerWallet,
+    }));
+
+    const distResults = await distributeTokensViaMcp(memo.outcomeMint, distributions);
+
+    const successfulTxs = distResults.filter(r => r.success).map(r => r.txSignature!);
+    const failedWallets = distResults.filter(r => !r.success);
+
+    if (failedWallets.length > 0) {
+      console.error(`[Trade] ${failedWallets.length} distribution(s) failed:`, failedWallets.map(f => f.error));
+    }
+
+    if (successfulTxs.length > 0) {
+      console.log(`[Trade] Distribution complete! ${successfulTxs.length}/${memo.destinationWallets.length} succeeded`);
+      return {
+        success: true,
+        tradeTx: tradeResult.txSignature,
+        distributeTxs: successfulTxs,
+        error: failedWallets.length > 0
+          ? `${failedWallets.length} distribution(s) failed`
+          : undefined,
+      };
+    } else {
+      return {
+        success: true,
+        tradeTx: tradeResult.txSignature,
+        error: 'All distributions failed',
+      };
+    }
+  }
+
+  return { success: true, tradeTx: tradeResult.txSignature };
+}
+
+/**
  * Process a deposit transaction
  */
 async function processDeposit(
@@ -140,11 +281,38 @@ async function processDeposit(
   if (!transfer) return;
 
   const memo = parseMemo(tx);
-  console.log(`Deposit detected: ${transfer.amount} USDC from ${transfer.sender}, memo: ${memo || 'none'}`);
+  console.log(`Deposit detected: ${transfer.amount} USDC from ${transfer.sender}, memo: ${memo?.raw || 'none'}`);
 
-  // Try to match to an order
-  if (memo) {
-    const order = getOrder(memo);
+  // Handle OBSIDIAN format (new privacy deposits)
+  if (memo?.action && memo.marketTicker && memo.outcomeMint && memo.destinationWallets && memo.destinationWallets.length > 0) {
+    console.log(`[Deposit Monitor] Processing OBSIDIAN order from privacy deposit`);
+    console.log(`[Deposit Monitor] ${memo.destinationWallets.length} destination wallet(s)`);
+
+    const result = await executeTradeAndDistribute(
+      memo,
+      parseFloat(transfer.amount),
+      signature
+    );
+
+    if (result.success) {
+      console.log(`[Deposit Monitor] Order complete! Trade: ${result.tradeTx}, Distributions: ${result.distributeTxs?.length || 0}`);
+    } else {
+      console.error(`[Deposit Monitor] Order failed:`, result.error);
+      // Store for manual review
+      unmatchedDeposits.set(signature, {
+        signature,
+        amount: transfer.amount,
+        sender: transfer.sender,
+        memo: memo.raw,
+        timestamp: new Date(),
+      });
+    }
+    return;
+  }
+
+  // Legacy format - try to match to an existing order
+  if (memo?.raw) {
+    const order = getOrder(memo.raw);
     if (order) {
       // Validate amount matches
       const expectedAmount = parseFloat(order.usdcAmount);
@@ -152,17 +320,17 @@ async function processDeposit(
 
       if (Math.abs(expectedAmount - receivedAmount) < 0.01) {
         // Amount matches - activate order
-        console.log(`Deposit matched to order ${memo}. Activating...`);
-        await activateOrder(memo, signature, transfer.sender);
+        console.log(`Deposit matched to order ${memo.raw}. Activating...`);
+        await activateOrder(memo.raw, signature, transfer.sender);
         return;
       } else {
         // Amount mismatch - refund
-        console.log(`Amount mismatch for order ${memo}. Expected ${expectedAmount}, got ${receivedAmount}. Refunding...`);
-        await refundOrder(memo, transfer.sender, transfer.amount, 'Amount mismatch');
+        console.log(`Amount mismatch for order ${memo.raw}. Expected ${expectedAmount}, got ${receivedAmount}. Refunding...`);
+        await refundOrder(memo.raw, transfer.sender, transfer.amount, 'Amount mismatch');
         return;
       }
     } else {
-      console.log(`Order ${memo} not found. Holding deposit for manual review.`);
+      console.log(`Order ${memo.raw} not found. Holding deposit for manual review.`);
     }
   }
 
@@ -171,7 +339,7 @@ async function processDeposit(
     signature,
     amount: transfer.amount,
     sender: transfer.sender,
-    memo,
+    memo: memo?.raw,
     timestamp: new Date(),
   });
 
@@ -180,6 +348,11 @@ async function processDeposit(
 
 /**
  * Monitor relay wallet for incoming USDC deposits
+ * Prioritizes MCP wallet if available, falls back to legacy relay wallet
+ *
+ * IMPORTANT: We watch the USDC Associated Token Account (ATA) address,
+ * not the wallet address, because getSignaturesForAddress only returns
+ * transactions that directly involve an address as a signer/account.
  */
 export async function startDepositMonitor(rpcUrl?: string): Promise<void> {
   const connection = new Connection(
@@ -187,31 +360,57 @@ export async function startDepositMonitor(rpcUrl?: string): Promise<void> {
     'confirmed'
   );
 
-  const wallet = await getRelayWallet();
-  const relayAddress = wallet.getAddress();
+  // Try to use MCP wallet first (Kalshi integration)
+  let relayAddress: string;
+  const mcpAddress = await getMcpWalletAddress();
+  if (mcpAddress) {
+    relayAddress = mcpAddress;
+    console.log(`Using MCP wallet for deposit monitoring: ${relayAddress}`);
+  } else {
+    const wallet = await getRelayWallet();
+    relayAddress = wallet.getAddress();
+    console.log(`Using legacy relay wallet for deposit monitoring: ${relayAddress}`);
+  }
+
+  // Get the USDC ATA for the relay wallet - this is what we actually monitor
+  // because token transfers go to the ATA, not the wallet itself
+  const { getAssociatedTokenAddress } = await import('@solana/spl-token');
+  const relayUsdcAta = await getAssociatedTokenAddress(
+    USDC_MINT,
+    new PublicKey(relayAddress)
+  );
+  const monitorAddress = relayUsdcAta.toBase58();
 
   console.log(`Starting deposit monitor for wallet: ${relayAddress}`);
+  console.log(`[Deposit Monitor] Watching USDC ATA: ${monitorAddress}`);
 
   // Get initial signature to start from
   let lastSignature: string | undefined;
 
   const signatures = await connection.getSignaturesForAddress(
-    new PublicKey(relayAddress),
+    new PublicKey(monitorAddress),
     { limit: 1 }
   );
 
   if (signatures.length > 0) {
     lastSignature = signatures[0].signature;
     processedSignatures.add(lastSignature);
+    console.log(`[Deposit Monitor] Starting from signature: ${lastSignature.slice(0, 20)}...`);
+  } else {
+    console.log(`[Deposit Monitor] No previous transactions found, watching from start`);
   }
 
   // Polling loop
   const poll = async () => {
     try {
       const newSignatures = await connection.getSignaturesForAddress(
-        new PublicKey(relayAddress),
+        new PublicKey(monitorAddress),
         lastSignature ? { until: lastSignature } : { limit: 10 }
       );
+
+      if (newSignatures.length > 0) {
+        console.log(`[Deposit Monitor] Found ${newSignatures.length} new transaction(s)`);
+      }
 
       // Process new transactions (oldest first)
       for (const sig of newSignatures.reverse()) {

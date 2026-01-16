@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useMarketStore } from '../../store/marketStore';
-import { Market, EventResult } from '../../types/market';
+import { Market, EventResult, MarketSearchResult } from '../../types/market';
+import { BuyModal } from './BuyModal';
 
 // Format volume nicely
 function formatVolume(volume?: number): string {
@@ -259,14 +260,31 @@ export function MarketTable() {
     loadFeaturedEvents,
   } = useMarketStore();
 
+  // Modal state
+  const [selectedMarket, setSelectedMarket] = useState<MarketSearchResult | null>(null);
+  const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES');
+  const [showBuyModal, setShowBuyModal] = useState(false);
+
   // Load featured events on mount
   useEffect(() => {
     loadFeaturedEvents();
   }, [loadFeaturedEvents]);
 
   const handleBuy = (market: Market, side: 'yes' | 'no') => {
-    console.log('Buy:', market.ticker, side);
-    // TODO: Open trade modal
+    // Convert Market to MarketSearchResult format for BuyModal
+    const marketForModal: MarketSearchResult = {
+      ticker: market.ticker,
+      title: market.title,
+      status: market.status || 'active',
+      yesPrice: market.yesPrice,
+      noPrice: market.noPrice,
+      yesMint: market.yesMint,
+      noMint: market.noMint,
+      volume: market.volume,
+    };
+    setSelectedMarket(marketForModal);
+    setSelectedSide(side === 'yes' ? 'YES' : 'NO');
+    setShowBuyModal(true);
   };
 
   // Show loading state
@@ -310,10 +328,25 @@ export function MarketTable() {
 
   // Show events
   return (
-    <div>
-      {eventResults.map(event => (
-        <EventCard key={event.ticker} event={event} onBuy={handleBuy} />
-      ))}
-    </div>
+    <>
+      <div>
+        {eventResults.map(event => (
+          <EventCard key={event.ticker} event={event} onBuy={handleBuy} />
+        ))}
+      </div>
+
+      {/* Buy Modal */}
+      {selectedMarket && (
+        <BuyModal
+          isOpen={showBuyModal}
+          onClose={() => {
+            setShowBuyModal(false);
+            setSelectedMarket(null);
+          }}
+          market={selectedMarket}
+          initialSide={selectedSide}
+        />
+      )}
+    </>
   );
 }

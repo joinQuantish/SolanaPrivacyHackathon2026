@@ -12,11 +12,20 @@ interface Props {
 }
 
 export const WalletProvider: FC<Props> = ({ children }) => {
-  // Use mainnet-beta for production
-  const endpoint = useMemo(() =>
-    import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl('mainnet-beta'),
-    []
-  );
+  // Use a reliable RPC endpoint for mainnet
+  // Priority: env var > Alchemy demo > ExtrNode > Ankr
+  const endpoint = useMemo(() => {
+    const envRpc = import.meta.env.VITE_SOLANA_RPC_URL;
+    if (envRpc) return envRpc;
+
+    // Fallback chain of public RPCs
+    const rpcs = [
+      'https://solana-mainnet.g.alchemy.com/v2/demo',
+      'https://solana-mainnet.rpc.extrnode.com',
+      'https://rpc.ankr.com/solana',
+    ];
+    return rpcs[0];
+  }, []);
 
   const wallets = useMemo(
     () => [

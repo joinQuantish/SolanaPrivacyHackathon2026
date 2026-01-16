@@ -302,24 +302,72 @@ router.get('/:pk/balances', async (req: Request, res: Response) => {
 
 /**
  * GET /api/wallets/:pk/holdings
- * Get token holdings for a wallet
+ * Get token holdings for a wallet (queries on-chain Token-2022 accounts)
+ * Note: Does not require wallet to be registered - queries any Solana address
  */
 router.get('/:pk/holdings', async (req: Request, res: Response) => {
   try {
     const { pk } = req.params;
 
-    // Verify wallet exists
-    const walletInfo = await getWalletByPublicKey(pk);
-    if (!walletInfo) {
-      res.status(404).json({
+    // Validate it looks like a valid Solana address (32-44 chars base58)
+    if (!pk || pk.length < 32 || pk.length > 44) {
+      res.status(400).json({
         success: false,
-        error: 'Wallet not found',
+        error: 'Invalid wallet address',
       });
       return;
     }
 
-    // Get token holdings from MCP
-    const holdings = await getTokenHoldings();
+    // Query Token-2022 program for this wallet's token accounts
+    // Kalshi prediction market tokens use Token-2022
+    const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+    const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getTokenAccountsByOwner',
+        params: [
+          pk,
+          { programId: TOKEN_2022_PROGRAM },
+          { encoding: 'jsonParsed' },
+        ],
+      }),
+    });
+
+    const data = await response.json() as {
+      result?: {
+        value: Array<{
+          account: {
+            data: {
+              parsed: {
+                info: {
+                  mint: string;
+                  tokenAmount: {
+                    uiAmount: number;
+                    decimals: number;
+                  };
+                };
+              };
+            };
+          };
+        }>;
+      };
+    };
+
+    const holdings = (data.result?.value || [])
+      .map(account => ({
+        mint: account.account.data.parsed.info.mint,
+        amount: account.account.data.parsed.info.tokenAmount.uiAmount || 0,
+        decimals: account.account.data.parsed.info.tokenAmount.decimals,
+        symbol: null, // Could look up market name from mint
+      }))
+      .filter(h => h.amount > 0);
+
+    console.log(`[Wallets] Holdings for ${pk.slice(0, 8)}...: ${holdings.length} tokens`);
 
     res.json({
       success: true,

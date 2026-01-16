@@ -1,5 +1,5 @@
 # This workspace only contains encrypted-ixs
-# The Anchor program is built separately
+# The Anchor program is built separately due to dependency conflicts
 [workspace]
 members = ["encrypted-ixs"]
 resolver = "2"

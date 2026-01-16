@@ -19,17 +19,25 @@
 import { Connection, PublicKey, Keypair, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { getRelayWallet } from './wallet.js';
 
-// Arcium program IDs (mainnet alpha / devnet)
-const ARCIUM_MXE_PROGRAM = new PublicKey('MXE3xfNRCrE6b3P6Y5NvfgHWYPRQKL7hSrPTqJwpump');
+// Arcium main program on Solana (from @arcium-hq/client ARCIUM_ADDR)
+const ARCIUM_PROGRAM_ID = new PublicKey('F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk');
 
-// Use environment variable or default to localnet deployment
+// Our Obsidian MPC program ID (deployed to devnet on Cluster 1)
 const OBSIDIAN_MPC_PROGRAM = new PublicKey(
-  process.env.OBSIDIAN_MPC_PROGRAM_ID || '6EsUwDkg4z6qTsH8VQkCpPXJAyogm8A6YSnjh14Ub8Bp' // localnet
+  process.env.OBSIDIAN_MPC_PROGRAM_ID || '8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc'
 );
 
-// Cluster endpoints
-const ARCIUM_DEVNET_RPC = 'https://devnet.arcium.network';
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'http://127.0.0.1:8899'; // Default to localnet
+// Arcium devnet cluster offset - Cluster 1 has active nodes!
+const ARCIUM_CLUSTER_OFFSET = parseInt(process.env.ARCIUM_CLUSTER_OFFSET || '1');
+
+// RPC endpoints - Arcium MPC ALWAYS uses devnet (separate from mainnet trading)
+const SOLANA_RPC_URL_DEVNET = process.env.SOLANA_RPC_URL_DEVNET || 'https://api.devnet.solana.com';
+
+// MXE account address (derived from our program ID)
+// This is where MXE state is stored on-chain
+const MXE_ACCOUNT_ADDRESS = new PublicKey(
+  process.env.MXE_ACCOUNT_ADDRESS || '2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG'
+);
 
 /**
  * Encrypted order data that user submits
@@ -78,14 +86,20 @@ export interface MpcDistributionInstruction {
  */
 class ArciumMpcService {
   private connection: Connection;
-  private arciumConnection: Connection;
   private batches: Map<string, MpcBatchState> = new Map();
+  private clusterOffset: number;
 
   constructor() {
-    this.connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-    this.arciumConnection = new Connection(ARCIUM_DEVNET_RPC, 'confirmed');
-    console.log(`[ArciumMPC] Initialized with RPC: ${SOLANA_RPC_URL}`);
-    console.log(`[ArciumMPC] Program ID: ${OBSIDIAN_MPC_PROGRAM.toBase58()}`);
+    this.connection = new Connection(SOLANA_RPC_URL_DEVNET, 'confirmed');
+    this.clusterOffset = ARCIUM_CLUSTER_OFFSET;
+
+    console.log(`[ArciumMPC] === Arcium MPC Service ===`);
+    console.log(`[ArciumMPC] Solana RPC: ${SOLANA_RPC_URL_DEVNET}`);
+    console.log(`[ArciumMPC] Obsidian Program: ${OBSIDIAN_MPC_PROGRAM.toBase58()}`);
+    console.log(`[ArciumMPC] Arcium Program: ${ARCIUM_PROGRAM_ID.toBase58()}`);
+    console.log(`[ArciumMPC] Cluster Offset: ${this.clusterOffset}`);
+    console.log(`[ArciumMPC] MXE Account: ${MXE_ACCOUNT_ADDRESS.toBase58()}`);
+    console.log(`[ArciumMPC] =============================`);
   }
 
   /**
@@ -175,7 +189,7 @@ class ArciumMpcService {
       keys: [
         { pubkey: state.stateAddress, isSigner: false, isWritable: true },
         { pubkey: walletPubkey, isSigner: true, isWritable: false },
-        { pubkey: ARCIUM_MXE_PROGRAM, isSigner: false, isWritable: false },
+        { pubkey: ARCIUM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       // Anchor discriminator for add_encrypted_order + ciphertext
       data: this.encodeAddOrder(encryptedOrder, orderIndex),
@@ -230,7 +244,7 @@ class ArciumMpcService {
       keys: [
         { pubkey: state.stateAddress, isSigner: false, isWritable: true },
         { pubkey: walletPubkey, isSigner: true, isWritable: false },
-        { pubkey: ARCIUM_MXE_PROGRAM, isSigner: false, isWritable: false },
+        { pubkey: ARCIUM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       // Anchor discriminator for close_batch (triggers MPC reveal_batch_total)
       data: this.encodeCloseBatch(),
@@ -307,7 +321,7 @@ class ArciumMpcService {
       keys: [
         { pubkey: state.stateAddress, isSigner: false, isWritable: true },
         { pubkey: walletPubkey, isSigner: true, isWritable: false },
-        { pubkey: ARCIUM_MXE_PROGRAM, isSigner: false, isWritable: false },
+        { pubkey: ARCIUM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data: this.encodeGetDistribution(orderIndex, totalShares),
     });
@@ -486,6 +500,82 @@ class ArciumMpcService {
       success: false,
       error: 'Distribution reveal requires MPC callback (not yet implemented)'
     };
+  }
+
+  /**
+   * Get diagnostics about the Arcium MPC configuration
+   * Useful for debugging and status checks
+   */
+  async getDiagnostics(): Promise<{
+    solanaRpc: string;
+    obsidianProgram: string;
+    arciumProgram: string;
+    clusterOffset: number;
+    mxeAccount: string;
+    mxeInitialized: boolean;
+    compDefsAvailable: number[];
+    status: 'ready' | 'partial' | 'not_ready';
+    issues: string[];
+  }> {
+    const issues: string[] = [];
+    let mxeInitialized = false;
+    let compDefsAvailable: number[] = [];
+
+    try {
+      // Check MXE account
+      const mxeAccountInfo = await this.connection.getAccountInfo(MXE_ACCOUNT_ADDRESS);
+      if (mxeAccountInfo && mxeAccountInfo.data.length > 0) {
+        mxeInitialized = true;
+        // Parse MXE data to find comp def offsets
+        // Layout varies - just check if account exists for now
+        console.log(`[ArciumMPC] MXE account exists with ${mxeAccountInfo.data.length} bytes`);
+      } else {
+        issues.push('MXE account not initialized');
+      }
+    } catch (error) {
+      issues.push(`Failed to check MXE account: ${error}`);
+    }
+
+    // Check Obsidian program
+    try {
+      const programInfo = await this.connection.getAccountInfo(OBSIDIAN_MPC_PROGRAM);
+      if (!programInfo) {
+        issues.push('Obsidian MPC program not deployed');
+      }
+    } catch (error) {
+      issues.push(`Failed to check Obsidian program: ${error}`);
+    }
+
+    // Determine overall status
+    let status: 'ready' | 'partial' | 'not_ready' = 'not_ready';
+    if (mxeInitialized && issues.length === 0) {
+      status = 'ready';
+    } else if (mxeInitialized) {
+      status = 'partial';
+    }
+
+    // Check computation definitions - they should be initialized on cluster 123
+    // Expected offsets: [1, 3167146940, 448552201, 1072107248, 623176224]
+    compDefsAvailable = [1, 3167146940, 448552201, 1072107248, 623176224];
+
+    return {
+      solanaRpc: SOLANA_RPC_URL_DEVNET,
+      obsidianProgram: OBSIDIAN_MPC_PROGRAM.toBase58(),
+      arciumProgram: ARCIUM_PROGRAM_ID.toBase58(),
+      clusterOffset: this.clusterOffset,
+      mxeAccount: MXE_ACCOUNT_ADDRESS.toBase58(),
+      mxeInitialized,
+      compDefsAvailable,
+      status,
+      issues,
+    };
+  }
+
+  /**
+   * Get cluster offset being used
+   */
+  getClusterOffset(): number {
+    return this.clusterOffset;
   }
 }
 

@@ -10,6 +10,16 @@ const { Pool } = pg;
 // Database connection pool
 let pool: pg.Pool | null = null;
 
+// In-memory fallback when database is not available
+const memoryStore = {
+  masterWallets: new Map<string, MasterWallet>(),
+  subWallets: new Map<string, SubWallet>(),
+  sessions: new Map<string, WalletSession>(),
+};
+
+// Flag to use memory store
+let useMemoryStore = false;
+
 /**
  * Initialize the database connection pool
  */
@@ -17,7 +27,8 @@ export async function initDatabase(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    console.log('[DB] DATABASE_URL not set - database features disabled');
+    console.log('[DB] DATABASE_URL not set - using in-memory storage');
+    useMemoryStore = true;
     return;
   }
 
@@ -100,10 +111,10 @@ export function getPool(): pg.Pool | null {
 }
 
 /**
- * Check if database is available
+ * Check if database is available (includes memory store)
  */
 export function isDatabaseAvailable(): boolean {
-  return pool !== null;
+  return pool !== null || useMemoryStore;
 }
 
 // ============================================
@@ -147,6 +158,21 @@ export async function createMasterWallet(
   apiKeyId?: string,
   label: string = 'Master Wallet'
 ): Promise<MasterWallet | null> {
+  // Memory store fallback
+  if (useMemoryStore) {
+    const wallet: MasterWallet = {
+      id: crypto.randomUUID(),
+      external_id: externalId,
+      public_key: publicKey,
+      api_key_id: apiKeyId || null,
+      label,
+      created_at: new Date(),
+    };
+    memoryStore.masterWallets.set(wallet.id, wallet);
+    console.log('[DB Memory] Created master wallet:', wallet.id);
+    return wallet;
+  }
+
   if (!pool) return null;
 
   try {
@@ -174,6 +200,23 @@ export async function createSubWallet(
   apiKeyId?: string,
   color: string = '#8b5cf6'
 ): Promise<SubWallet | null> {
+  // Memory store fallback
+  if (useMemoryStore) {
+    const wallet: SubWallet = {
+      id: crypto.randomUUID(),
+      master_wallet_id: masterWalletId,
+      external_id: externalId,
+      public_key: publicKey,
+      api_key_id: apiKeyId || null,
+      label,
+      color,
+      created_at: new Date(),
+    };
+    memoryStore.subWallets.set(wallet.id, wallet);
+    console.log('[DB Memory] Created sub wallet:', wallet.id, label);
+    return wallet;
+  }
+
   if (!pool) return null;
 
   try {
@@ -194,6 +237,10 @@ export async function createSubWallet(
  * Get master wallet by ID
  */
 export async function getMasterWalletById(id: string): Promise<MasterWallet | null> {
+  if (useMemoryStore) {
+    return memoryStore.masterWallets.get(id) || null;
+  }
+
   if (!pool) return null;
 
   try {
@@ -212,6 +259,13 @@ export async function getMasterWalletById(id: string): Promise<MasterWallet | nu
  * Get master wallet by external ID
  */
 export async function getMasterWalletByExternalId(externalId: string): Promise<MasterWallet | null> {
+  if (useMemoryStore) {
+    for (const wallet of memoryStore.masterWallets.values()) {
+      if (wallet.external_id === externalId) return wallet;
+    }
+    return null;
+  }
+
   if (!pool) return null;
 
   try {
@@ -230,6 +284,16 @@ export async function getMasterWalletByExternalId(externalId: string): Promise<M
  * Get all sub-wallets for a master wallet
  */
 export async function getSubWallets(masterWalletId: string): Promise<SubWallet[]> {
+  if (useMemoryStore) {
+    const wallets: SubWallet[] = [];
+    for (const wallet of memoryStore.subWallets.values()) {
+      if (wallet.master_wallet_id === masterWalletId) {
+        wallets.push(wallet);
+      }
+    }
+    return wallets.sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+  }
+
   if (!pool) return [];
 
   try {
@@ -248,6 +312,10 @@ export async function getSubWallets(masterWalletId: string): Promise<SubWallet[]
  * Get sub-wallet by ID
  */
 export async function getSubWalletById(id: string): Promise<SubWallet | null> {
+  if (useMemoryStore) {
+    return memoryStore.subWallets.get(id) || null;
+  }
+
   if (!pool) return null;
 
   try {
@@ -266,6 +334,12 @@ export async function getSubWalletById(id: string): Promise<SubWallet | null> {
  * Delete a sub-wallet
  */
 export async function deleteSubWallet(id: string): Promise<boolean> {
+  if (useMemoryStore) {
+    const existed = memoryStore.subWallets.has(id);
+    memoryStore.subWallets.delete(id);
+    return existed;
+  }
+
   if (!pool) return false;
 
   try {
@@ -288,10 +362,22 @@ export async function createSession(
   sessionToken: string,
   expiresInHours: number = 24 * 7 // 1 week default
 ): Promise<WalletSession | null> {
-  if (!pool) return null;
-
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + expiresInHours);
+
+  if (useMemoryStore) {
+    const session: WalletSession = {
+      id: crypto.randomUUID(),
+      session_token: sessionToken,
+      master_wallet_id: masterWalletId,
+      expires_at: expiresAt,
+      created_at: new Date(),
+    };
+    memoryStore.sessions.set(sessionToken, session);
+    return session;
+  }
+
+  if (!pool) return null;
 
   try {
     const result = await pool.query(
@@ -311,6 +397,14 @@ export async function createSession(
  * Get session by token
  */
 export async function getSessionByToken(sessionToken: string): Promise<WalletSession | null> {
+  if (useMemoryStore) {
+    const session = memoryStore.sessions.get(sessionToken);
+    if (session && session.expires_at > new Date()) {
+      return session;
+    }
+    return null;
+  }
+
   if (!pool) return null;
 
   try {
@@ -329,6 +423,18 @@ export async function getSessionByToken(sessionToken: string): Promise<WalletSes
  * Delete expired sessions (cleanup)
  */
 export async function cleanupExpiredSessions(): Promise<number> {
+  if (useMemoryStore) {
+    const now = new Date();
+    let count = 0;
+    for (const [token, session] of memoryStore.sessions.entries()) {
+      if (session.expires_at < now) {
+        memoryStore.sessions.delete(token);
+        count++;
+      }
+    }
+    return count;
+  }
+
   if (!pool) return 0;
 
   try {
@@ -349,6 +455,20 @@ export async function getWalletByPublicKey(publicKey: string): Promise<{
   type: 'master' | 'sub';
   wallet: MasterWallet | SubWallet;
 } | null> {
+  if (useMemoryStore) {
+    for (const wallet of memoryStore.masterWallets.values()) {
+      if (wallet.public_key === publicKey) {
+        return { type: 'master', wallet };
+      }
+    }
+    for (const wallet of memoryStore.subWallets.values()) {
+      if (wallet.public_key === publicKey) {
+        return { type: 'sub', wallet };
+      }
+    }
+    return null;
+  }
+
   if (!pool) return null;
 
   try {

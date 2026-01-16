@@ -7,6 +7,7 @@ import { poseidonRouter } from './routes/poseidon.js';
 import relayRouter from './routes/relay.js';
 import walletsRouter from './routes/wallets.js';
 import marketsRouter from './routes/markets.js';
+import privacyRouter from './routes/privacy.js';
 import { getRelayWallet } from './services/wallet.js';
 import { startDepositMonitor } from './services/deposit-monitor.js';
 import { initDatabase } from './services/database.js';
@@ -47,6 +48,9 @@ app.use('/api/wallets', walletsRouter);
 
 // Markets & Trading API (for frontend)
 app.use('/api/markets', marketsRouter);
+
+// Privacy Cash API (for unlinkable deposits)
+app.use('/api/privacy', privacyRouter);
 
 // Error handling
 app.use(

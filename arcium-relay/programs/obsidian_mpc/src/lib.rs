@@ -1,18 +1,49 @@
 //! Obsidian MPC Program
 //!
-//! Simplified Anchor program for blind batch execution.
+//! Anchor program for blind batch execution.
 //! Coordinates with Arcium MPC to process orders privately.
 
 use anchor_lang::prelude::*;
+use arcium_anchor::prelude::*;
 
-declare_id!("9Ywdn11qyk6eJz1XJSyPLWkiTFxpdqAxbcftS2PgvTpM");
-
-/// Size of encrypted batch stats (2 field elements)
-pub const ENCRYPTED_STATS_SIZE: usize = 2 * 32;
+declare_id!("8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc");
 
 #[program]
 pub mod obsidian_mpc {
     use super::*;
+
+    // ============================================================================
+    // Computation Definition Initialization
+    // These must be called once to register MPC circuits with Arcium
+    // ============================================================================
+
+    /// Initialize the init_batch computation definition
+    pub fn init_init_batch_comp_def(ctx: Context<InitInitBatchCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, None, None)?;
+        Ok(())
+    }
+
+    /// Initialize the add_to_batch computation definition
+    pub fn init_add_to_batch_comp_def(ctx: Context<InitAddToBatchCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, None, None)?;
+        Ok(())
+    }
+
+    /// Initialize the reveal_batch_total computation definition
+    pub fn init_reveal_batch_total_comp_def(ctx: Context<InitRevealBatchTotalCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, None, None)?;
+        Ok(())
+    }
+
+    /// Initialize the compute_distribution computation definition
+    pub fn init_compute_distribution_comp_def(ctx: Context<InitComputeDistributionCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, None, None)?;
+        Ok(())
+    }
+
+    // ============================================================================
+    // Batch Management Instructions
+    // ============================================================================
 
     /// Initialize a new batch.
     pub fn create_batch(
@@ -220,7 +251,67 @@ impl Default for BatchStatus {
 }
 
 // ============================================================================
-// Contexts
+// Computation Definition Account Contexts
+// ============================================================================
+
+#[init_computation_definition_accounts("init_batch", payer)]
+#[derive(Accounts)]
+pub struct InitInitBatchCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    /// CHECK: Initialized via CPI
+    #[account(mut)]
+    pub comp_def_account: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+#[init_computation_definition_accounts("add_to_batch", payer)]
+#[derive(Accounts)]
+pub struct InitAddToBatchCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    /// CHECK: Initialized via CPI
+    #[account(mut)]
+    pub comp_def_account: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+#[init_computation_definition_accounts("reveal_batch_total", payer)]
+#[derive(Accounts)]
+pub struct InitRevealBatchTotalCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    /// CHECK: Initialized via CPI
+    #[account(mut)]
+    pub comp_def_account: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+#[init_computation_definition_accounts("compute_distribution", payer)]
+#[derive(Accounts)]
+pub struct InitComputeDistributionCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    /// CHECK: Initialized via CPI
+    #[account(mut)]
+    pub comp_def_account: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+// ============================================================================
+// Batch Management Account Contexts
 // ============================================================================
 
 #[derive(Accounts)]

@@ -9,3 +9,22 @@ circuits/*/target/
 coverage/
 .nyc_output/
 .wallet/
+
+# Arcium relay build artifacts
+arcium-relay/target/
+arcium-relay/programs/target/
+arcium-relay/programs/build/
+arcium-relay/programs/*/build/
+arcium-relay/node_modules/
+arcium-relay/build/
+arcium-relay/artifacts/
+test-ledger/
+
+# Rust build artifacts
+target/
+cache/
+Cargo.lock
+
+# Privacy Pool build
+programs/privacy_pool/target/
+programs/target/

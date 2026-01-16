@@ -18,6 +18,6 @@ idl-build = ["anchor-lang/idl-build"]
 anchor-debug = ["anchor-lang/anchor-debug"]
 
 [dependencies]
-anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
-# Pin blake3 to avoid edition2024 requirement
-blake3 = "=1.5.4"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+arcium-anchor = "0.5.4"
+arcium-client = { version = "0.5.4", default-features = false }
