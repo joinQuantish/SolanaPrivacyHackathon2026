@@ -14,6 +14,32 @@ Built for the **Solana Privacy Hackathon 2026**
 
 **Website:** [quantish.live](https://quantish.live) | **Twitter:** [@joinQuantish](https://x.com/joinQuantish) | **Contact:** josh@quantish.live
 
+**Telegram:** [@boshjerns](https://t.me/boshjerns) | **Bot:** [@quantish_agent_bot](https://t.me/quantish_agent_bot)
+
+---
+
+## Demo Video
+
+https://github.com/joinQuantish/SolanaPrivacyHackathon2026/raw/main/demo.mp4
+
+---
+
+## Hackathon Track & Bounties
+
+**Track:** Track 3 - Open Track
+
+> Intersection of prediction markets and privacy tooling - qualifies for multiple sponsor bounties.
+
+### Sponsor Bounties Targeted
+
+| Sponsor | Bounty | Amount | Our Integration |
+|---------|--------|--------|-----------------|
+| **Privacy Cash** | Best Integration to Existing App | $6,000 | ZK shielded pool for wallet unlinkability |
+| **Aztec/Noir** | Best Overall / Most Creative | $5,000 / $2,500 | Noir ZK circuits for batch verification |
+| **Arcium** | Best Overall App / Best Integration | $5,000 / $3,000 | MPC for encrypted order amounts on Solana devnet |
+| **Helius** | Best Privacy Project with Helius | TBD | High-performance RPC for Solana connectivity |
+| **PNP Exchange** | Private Prediction Markets | $1,000 | Private prediction market infrastructure |
+
 ---
 
 ## About Quantish
@@ -377,6 +403,20 @@ npm run init-compdefs # Register computation definitions
 
 ---
 
+## Roadmap
+
+### Near-term
+- **User Validation** - Gauge interest in the full Privacy Relay with MPC-hidden order amounts
+- **Simplified Privacy Mode** - At minimum, deploy a lighter relay with wallet obfuscation via Privacy Cash and ephemeral wallets
+- **Platform Growth** - Expand user base on [quantish.live](https://quantish.live) web app and [@quantish_agent_bot](https://t.me/quantish_agent_bot) Telegram bot
+
+### Long-term
+- **Full MPC Integration** - Production deployment of Arcium MPC for completely blind order processing
+- **Multi-market Support** - Expand beyond Kalshi to other prediction market venues
+- **SDK Release** - Open-source privacy relay SDK for other projects to integrate
+
+---
+
 ## License
 
 MIT
@@ -385,4 +425,4 @@ MIT
 
 Built by [Quantish](https://quantish.live) for the **Solana Privacy Hackathon 2026**
 
-[@joinQuantish](https://x.com/joinQuantish) | josh@quantish.live
+[@joinQuantish](https://x.com/joinQuantish) | [@boshjerns](https://t.me/boshjerns) | josh@quantish.live
