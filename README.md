@@ -12,6 +12,19 @@
 
 Built for the **Solana Privacy Hackathon 2026**
 
+**Website:** [quantish.live](https://quantish.live) | **Twitter:** [@joinQuantish](https://x.com/joinQuantish) | **Contact:** josh@quantish.live
+
+---
+
+## About Quantish
+
+Quantish is building privacy-first infrastructure for prediction markets on Solana. We believe traders should be able to participate in markets without revealing their strategies, positions, or wallet activity to the world.
+
+This relay demonstrates how multiple privacy technologies can work together to provide comprehensive protection:
+- Your wallet identity stays private (Privacy Cash)
+- Your order amounts stay hidden from the relay operator (Arcium MPC)
+- Correct execution is cryptographically verified (Noir ZK proofs)
+
 ---
 
 ## Sponsor Integrations
@@ -370,4 +383,6 @@ MIT
 
 ---
 
-Built for the **Solana Privacy Hackathon 2026**
+Built by [Quantish](https://quantish.live) for the **Solana Privacy Hackathon 2026**
+
+[@joinQuantish](https://x.com/joinQuantish) | josh@quantish.live
