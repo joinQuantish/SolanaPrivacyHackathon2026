@@ -42,7 +42,7 @@
 
 ### Environment Variables (.env)
 ```bash
-MCP_API_KEY=pk_kalshi_B8XaTtyigPR0wvmDufQSGqyGvnBnToGe
+MCP_API_KEY=pk_kalshi_YOUR_API_KEY_HERE  # Get from Quantish
 ARCIUM_MPC_ENABLED=true
 ARCIUM_CLUSTER_OFFSET=123
 SOLANA_RPC_URL=https://api.devnet.solana.com

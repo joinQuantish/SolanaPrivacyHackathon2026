@@ -16,19 +16,19 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const baseClasses = 'font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2';
+  const baseClasses = 'font-bold transition-all duration-100 flex items-center justify-center gap-2 uppercase tracking-wider border-2';
 
   const variantClasses = {
-    primary: 'bg-accent-purple hover:bg-accent-purple/80 text-white',
-    secondary: 'bg-obsidian-700 hover:bg-obsidian-600 text-obsidian-100 border border-obsidian-600',
-    ghost: 'hover:bg-obsidian-700/50 text-obsidian-300 hover:text-obsidian-100',
-    danger: 'bg-accent-red hover:bg-accent-red/80 text-white',
+    primary: 'bg-qn-black text-white border-qn-black hover:shadow-brutal hover:translate-x-[-1px] hover:translate-y-[-1px]',
+    secondary: 'bg-white text-qn-black border-qn-black hover:shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px]',
+    ghost: 'text-qn-gray-500 hover:text-qn-black border-transparent hover:border-qn-black',
+    danger: 'bg-accent-red text-white border-accent-red hover:shadow-brutal-red hover:translate-x-[-1px] hover:translate-y-[-1px]',
   };
 
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-6 py-3 text-base',
   };
 
   const isDisabled = disabled || loading;

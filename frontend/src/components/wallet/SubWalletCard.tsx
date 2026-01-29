@@ -49,27 +49,27 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
 
   return (
     <>
-      <Card className="relative">
+      <div className="bg-white border-2 border-qn-black p-4 relative transition-all duration-100 hover:shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px]">
         {/* Color indicator */}
         <div
-          className="absolute top-3 right-3 w-3 h-3 rounded-full"
-          style={{ backgroundColor: wallet.color || '#8b5cf6' }}
+          className="absolute top-3 right-3 w-3 h-3"
+          style={{ backgroundColor: wallet.color || '#0d0d0d' }}
         />
 
-        <h3 className="font-medium text-obsidian-100 mb-3 pr-6">
+        <h3 className="font-bold text-qn-black mb-3 pr-6 uppercase text-sm tracking-wide">
           {wallet.label}
         </h3>
 
         <div className="space-y-2 mb-4">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-obsidian-400">SOL</span>
-            <span className="text-sm font-medium text-obsidian-200">
+            <span className="text-sm text-qn-gray-400 font-mono uppercase">SOL</span>
+            <span className="text-sm font-bold text-qn-black font-mono">
               {walletBalances?.sol?.toFixed(4) ?? '—'}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-obsidian-400">USDC</span>
-            <span className="text-sm font-medium text-obsidian-200">
+            <span className="text-sm text-qn-gray-400 font-mono uppercase">USDC</span>
+            <span className="text-sm font-bold text-qn-black font-mono">
               ${walletBalances?.usdc?.toFixed(2) ?? '—'}
             </span>
           </div>
@@ -77,13 +77,13 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
           {/* Holdings toggle */}
           <button
             onClick={() => setShowHoldings(!showHoldings)}
-            className="w-full flex items-center justify-between py-1 text-sm text-obsidian-400 hover:text-obsidian-200"
+            className="w-full flex items-center justify-between py-1 text-sm text-qn-gray-500 hover:text-qn-black"
           >
             <span className="flex items-center gap-1">
               <span>📊</span>
-              Holdings
+              <span className="uppercase text-xs font-bold tracking-wider">Holdings</span>
               {walletHoldings.length > 0 && (
-                <span className="text-xs text-accent-green">({walletHoldings.length})</span>
+                <span className="text-xs text-accent-green font-mono">({walletHoldings.length})</span>
               )}
             </span>
             <svg
@@ -97,26 +97,26 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
           </button>
 
           {showHoldings && (
-            <div className="pl-2 border-l-2 border-obsidian-700 space-y-1.5">
+            <div className="pl-2 border-l-2 border-qn-black space-y-1.5">
               {walletHoldings.length > 0 ? (
                 walletHoldings.map((holding, idx) => (
                   <div key={idx} className="flex justify-between items-center text-xs">
-                    <span className="text-obsidian-400 truncate max-w-[100px]" title={holding.mint}>
+                    <span className="text-qn-gray-500 truncate max-w-[100px] font-mono" title={holding.mint}>
                       {holding.symbol || holding.mint.slice(0, 8) + '...'}
                     </span>
-                    <span className="text-obsidian-200 font-medium">
+                    <span className="text-qn-black font-bold font-mono">
                       {holding.amount.toLocaleString()}
                     </span>
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-obsidian-500 italic">
+                <p className="text-xs text-qn-gray-400 font-mono">
                   No positions yet
                 </p>
               )}
               <button
                 onClick={() => refreshHoldings(wallet.publicKey)}
-                className="text-xs text-[rgb(56,190,231)] hover:underline"
+                className="text-xs text-accent-green hover:underline font-bold uppercase"
               >
                 Refresh
               </button>
@@ -125,13 +125,13 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
         </div>
 
         <div className="flex items-center justify-between mb-3">
-          <code className="text-xs text-obsidian-500 font-mono">
+          <code className="text-xs text-qn-gray-500 font-mono">
             {formatAddress(wallet.publicKey)}
           </code>
           <div className="flex items-center gap-1">
             <button
               onClick={copyAddress}
-              className="p-1 text-obsidian-500 hover:text-obsidian-300 transition-colors"
+              className="p-1 text-qn-gray-400 hover:text-qn-black transition-colors"
               title="Copy address"
             >
               {copied ? (
@@ -146,7 +146,7 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
             </button>
             <button
               onClick={openExplorer}
-              className="p-1 text-obsidian-500 hover:text-obsidian-300 transition-colors"
+              className="p-1 text-qn-gray-400 hover:text-qn-black transition-colors"
               title="View on Solscan"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,26 +156,26 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-1 text-obsidian-500 hover:text-obsidian-300 transition-colors"
+                className="p-1 text-qn-gray-400 hover:text-qn-black transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-32 bg-obsidian-700 border border-obsidian-600 rounded-lg shadow-xl z-10">
+                <div className="absolute right-0 top-full mt-1 w-32 bg-white border-2 border-qn-black z-10" style={{ boxShadow: '4px 4px 0px 0px rgb(13, 13, 13)' }}>
                   <button
                     onClick={() => {
                       refreshBalances(wallet.publicKey);
                       setShowMenu(false);
                     }}
-                    className="w-full px-3 py-2 text-left text-sm text-obsidian-200 hover:bg-obsidian-600 rounded-t-lg"
+                    className="w-full px-3 py-2 text-left text-sm text-qn-black hover:bg-qn-gray-100 font-bold uppercase text-xs"
                   >
                     Refresh
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="w-full px-3 py-2 text-left text-sm text-accent-red hover:bg-obsidian-600 rounded-b-lg"
+                    className="w-full px-3 py-2 text-left text-sm text-accent-red hover:bg-accent-red/10 font-bold uppercase text-xs border-t border-qn-gray-200"
                   >
                     Remove
                   </button>
@@ -203,7 +203,7 @@ export function SubWalletCard({ wallet }: SubWalletCardProps) {
             View
           </Button>
         </div>
-      </Card>
+      </div>
 
       {showTransfer && (
         <TransferModal

@@ -9,35 +9,36 @@ interface DemoTabsProps {
 
 export function DemoTabs({ activeTab, onTabChange }: DemoTabsProps) {
   return (
-    <div className="flex items-center justify-center gap-1 p-1 bg-obsidian-800/50 rounded-xl border border-obsidian-700 mb-6">
+    <div className="flex items-center gap-0 mb-6 border-2 border-qn-black bg-white inline-flex">
       <button
         onClick={() => onTabChange('mainnet')}
         className={`
-          px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+          px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-100 font-mono
           ${activeTab === 'mainnet'
-            ? 'bg-accent-purple text-white'
-            : 'text-obsidian-400 hover:text-obsidian-200 hover:bg-obsidian-700/50'
+            ? 'bg-qn-black text-white'
+            : 'bg-white text-qn-gray-500 hover:text-qn-black hover:bg-qn-gray-100'
           }
         `}
       >
         <span className="flex items-center gap-2">
-          <span className="text-accent-green">●</span>
-          Live Demo (Mainnet)
+          <span className={activeTab === 'mainnet' ? 'text-accent-green' : 'text-accent-green'}>●</span>
+          Live Demo
         </span>
       </button>
       <button
         onClick={() => onTabChange('devnet')}
         className={`
-          px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+          px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-100 font-mono
+          border-l-2 border-qn-black
           ${activeTab === 'devnet'
-            ? 'bg-accent-purple text-white'
-            : 'text-obsidian-400 hover:text-obsidian-200 hover:bg-obsidian-700/50'
+            ? 'bg-qn-black text-white'
+            : 'bg-white text-qn-gray-500 hover:text-qn-black hover:bg-qn-gray-100'
           }
         `}
       >
         <span className="flex items-center gap-2">
-          <span className="text-[rgb(56,190,231)]">●</span>
-          Arcium MPC (Devnet)
+          <span className={activeTab === 'devnet' ? 'text-accent-cyan' : 'text-accent-cyan'}>●</span>
+          Arcium MPC
         </span>
       </button>
     </div>

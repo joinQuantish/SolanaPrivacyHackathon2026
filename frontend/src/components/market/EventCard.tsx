@@ -10,9 +10,9 @@ interface EventCardProps {
 // Format volume for display
 function formatVolume(volume?: number): string {
   if (!volume) return '';
-  if (volume >= 1_000_000) return `$${(volume / 1_000_000).toFixed(1)}M Vol.`;
-  if (volume >= 1_000) return `$${(volume / 1_000).toFixed(0)}k Vol.`;
-  return `$${volume} Vol.`;
+  if (volume >= 1_000_000) return `$${(volume / 1_000_000).toFixed(1)}M`;
+  if (volume >= 1_000) return `$${(volume / 1_000).toFixed(0)}k`;
+  return `$${volume}`;
 }
 
 // Format price as percentage
@@ -35,19 +35,19 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <>
-      <Card className="hover:border-obsidian-600 transition-colors">
+      <div className="bg-white border-2 border-qn-black p-4 transition-all duration-100 hover:shadow-brutal hover:translate-x-[-1px] hover:translate-y-[-1px]">
         {/* Event Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="text-base font-medium text-obsidian-100 leading-snug">
+            <h3 className="text-sm font-bold text-qn-black leading-snug uppercase tracking-tight">
               {event.title}
             </h3>
             {event.subtitle && (
-              <p className="text-xs text-obsidian-500 mt-1">{event.subtitle}</p>
+              <p className="text-xs text-qn-gray-500 mt-1 font-mono">{event.subtitle}</p>
             )}
           </div>
           {event.volume && (
-            <span className="text-xs text-obsidian-500 ml-3 whitespace-nowrap">
+            <span className="text-xs text-qn-gray-400 ml-3 whitespace-nowrap font-mono">
               {formatVolume(event.volume)}
             </span>
           )}
@@ -62,7 +62,7 @@ export function EventCard({ event }: EventCardProps) {
         {isMultiOutcome && (
           <MultiOutcomeMarkets markets={event.markets} onBuy={handleBuy} />
         )}
-      </Card>
+      </div>
 
       {/* Buy Modal */}
       {selectedMarket && (
@@ -100,13 +100,13 @@ function BinaryMarket({
     <div>
       {/* Probability bar */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="flex-1 h-2 bg-obsidian-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 bg-qn-gray-200 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-accent-green to-accent-green/70 transition-all"
+            className="h-full bg-accent-green transition-all"
             style={{ width: `${yesPercent}%` }}
           />
         </div>
-        <span className="text-lg font-semibold text-obsidian-100 min-w-[60px] text-right">
+        <span className="text-lg font-bold text-qn-black min-w-[60px] text-right font-mono">
           {yesPercent}%
         </span>
       </div>
@@ -115,17 +115,17 @@ function BinaryMarket({
       <div className="flex gap-2">
         <button
           onClick={() => onBuy(market, 'YES')}
-          className="flex-1 py-2.5 px-4 rounded-lg bg-accent-green/10 border border-accent-green/30
-                     text-accent-green font-medium text-sm
-                     hover:bg-accent-green/20 hover:border-accent-green/50 transition-all"
+          className="flex-1 py-2.5 px-4 bg-white border-2 border-accent-green
+                     text-accent-green font-bold text-sm uppercase tracking-wider font-mono
+                     hover:bg-accent-green hover:text-white transition-all duration-100"
         >
           Yes {formatPercent(market.yesPrice)}
         </button>
         <button
           onClick={() => onBuy(market, 'NO')}
-          className="flex-1 py-2.5 px-4 rounded-lg bg-accent-red/10 border border-accent-red/30
-                     text-accent-red font-medium text-sm
-                     hover:bg-accent-red/20 hover:border-accent-red/50 transition-all"
+          className="flex-1 py-2.5 px-4 bg-white border-2 border-accent-red
+                     text-accent-red font-bold text-sm uppercase tracking-wider font-mono
+                     hover:bg-accent-red hover:text-white transition-all duration-100"
         >
           No {formatPercent(market.noPrice)}
         </button>
@@ -148,7 +148,7 @@ function MultiOutcomeMarkets({
   const displayed = sorted.slice(0, 6);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {displayed.map(market => {
         const yesPercent = market.yesPrice ? Math.round(market.yesPrice * 100) : 0;
         // Extract the option name from subtitle or title
@@ -157,24 +157,24 @@ function MultiOutcomeMarkets({
         return (
           <div
             key={market.ticker}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-obsidian-800/50 transition-colors group"
+            className="flex items-center gap-3 p-2 hover:bg-qn-gray-100 transition-colors group border-b border-qn-gray-200 last:border-0"
           >
             {/* Option name and probability */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-obsidian-200 truncate">
+                <span className="text-sm text-qn-black truncate">
                   {optionName}
                 </span>
-                <span className={`text-sm font-semibold ${
-                  yesPercent >= 20 ? 'text-accent-green' : 'text-obsidian-400'
+                <span className={`text-sm font-bold font-mono ${
+                  yesPercent >= 20 ? 'text-accent-green' : 'text-qn-gray-400'
                 }`}>
                   {yesPercent}%
                 </span>
               </div>
               {/* Mini probability bar */}
-              <div className="h-1 bg-obsidian-700 rounded-full mt-1 overflow-hidden">
+              <div className="h-1 bg-qn-gray-200 mt-1 overflow-hidden">
                 <div
-                  className="h-full bg-accent-purple transition-all"
+                  className="h-full bg-qn-black transition-all"
                   style={{ width: `${Math.max(yesPercent, 2)}%` }}
                 />
               </div>
@@ -184,15 +184,15 @@ function MultiOutcomeMarkets({
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onBuy(market, 'YES')}
-                className="px-3 py-1 text-xs rounded bg-accent-green/20 text-accent-green
-                           hover:bg-accent-green/30 transition-colors"
+                className="px-3 py-1 text-xs font-bold uppercase bg-white border border-accent-green text-accent-green
+                           hover:bg-accent-green hover:text-white transition-colors font-mono"
               >
                 Yes
               </button>
               <button
                 onClick={() => onBuy(market, 'NO')}
-                className="px-3 py-1 text-xs rounded bg-accent-red/20 text-accent-red
-                           hover:bg-accent-red/30 transition-colors"
+                className="px-3 py-1 text-xs font-bold uppercase bg-white border border-accent-red text-accent-red
+                           hover:bg-accent-red hover:text-white transition-colors font-mono"
               >
                 No
               </button>
@@ -202,7 +202,7 @@ function MultiOutcomeMarkets({
       })}
 
       {markets.length > 6 && (
-        <p className="text-xs text-obsidian-500 text-center pt-1">
+        <p className="text-xs text-qn-gray-400 text-center pt-1 font-mono uppercase">
           +{markets.length - 6} more options
         </p>
       )}

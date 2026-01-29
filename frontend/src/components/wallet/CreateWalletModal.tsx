@@ -58,7 +58,7 @@ export function CreateWalletModal({ isOpen, onClose }: CreateWalletModalProps) {
         />
 
         <div>
-          <label className="block text-sm font-medium text-obsidian-300 mb-2">
+          <label className="block text-xs font-bold text-qn-gray-600 uppercase tracking-wider font-mono mb-2">
             Color
           </label>
           <div className="flex gap-2 flex-wrap">
@@ -68,8 +68,8 @@ export function CreateWalletModal({ isOpen, onClose }: CreateWalletModalProps) {
                 type="button"
                 onClick={() => setColor(c)}
                 className={`
-                  w-8 h-8 rounded-full transition-all
-                  ${color === c ? 'ring-2 ring-offset-2 ring-offset-obsidian-800 ring-white scale-110' : 'hover:scale-105'}
+                  w-8 h-8 transition-all border-2
+                  ${color === c ? 'border-qn-black scale-110 shadow-brutal-sm' : 'border-transparent hover:scale-105'}
                 `}
                 style={{ backgroundColor: c }}
               />

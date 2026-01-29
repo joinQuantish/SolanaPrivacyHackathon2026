@@ -36,11 +36,11 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         onClick={e => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between p-4 border-b border-obsidian-700">
-            <h2 className="text-lg font-semibold text-obsidian-50">{title}</h2>
+          <div className="flex items-center justify-between p-4 border-b-2 border-qn-black">
+            <h2 className="text-lg font-bold text-qn-black uppercase tracking-wide">{title}</h2>
             <button
               onClick={onClose}
-              className="text-obsidian-400 hover:text-obsidian-200 transition-colors"
+              className="text-qn-gray-400 hover:text-qn-black transition-colors"
             >
               <svg
                 className="w-5 h-5"

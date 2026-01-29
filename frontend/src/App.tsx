@@ -20,10 +20,10 @@ function WelcomeScreen() {
     <div className="space-y-8">
       {/* Hero Section */}
       <div className="text-center py-8">
-        <h1 className="text-3xl font-bold text-obsidian-100 mb-3">
+        <h1 className="text-3xl font-bold text-qn-black mb-3 uppercase tracking-tight">
           Private Prediction Markets
         </h1>
-        <p className="text-obsidian-400 max-w-lg mx-auto">
+        <p className="text-qn-gray-500 max-w-lg mx-auto">
           Trade prediction markets without linking your wallet to your positions.
           Powered by Privacy Cash zero-knowledge proofs.
         </p>
@@ -31,32 +31,32 @@ function WelcomeScreen() {
 
       {/* How It Works - 3 Steps */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-obsidian-800/50 rounded-xl p-5 border border-obsidian-700">
-          <div className="w-10 h-10 rounded-full bg-accent-purple/20 flex items-center justify-center mb-3">
-            <span className="text-accent-purple font-bold">1</span>
+        <div className="bg-white p-5 border-2 border-qn-black" style={{ boxShadow: '4px 4px 0px 0px rgb(13, 13, 13)' }}>
+          <div className="w-10 h-10 bg-qn-black flex items-center justify-center mb-3">
+            <span className="text-white font-bold font-mono">1</span>
           </div>
-          <h3 className="font-semibold text-obsidian-100 mb-1">Connect Wallet</h3>
-          <p className="text-sm text-obsidian-400">
+          <h3 className="font-bold text-qn-black mb-1 uppercase text-sm tracking-wide">Connect Wallet</h3>
+          <p className="text-sm text-qn-gray-500">
             Connect your Phantom wallet. This is your funding source.
           </p>
         </div>
 
-        <div className="bg-obsidian-800/50 rounded-xl p-5 border border-obsidian-700">
-          <div className="w-10 h-10 rounded-full bg-accent-purple/20 flex items-center justify-center mb-3">
-            <span className="text-accent-purple font-bold">2</span>
+        <div className="bg-white p-5 border-2 border-qn-black" style={{ boxShadow: '4px 4px 0px 0px rgb(13, 13, 13)' }}>
+          <div className="w-10 h-10 bg-qn-black flex items-center justify-center mb-3">
+            <span className="text-white font-bold font-mono">2</span>
           </div>
-          <h3 className="font-semibold text-obsidian-100 mb-1">Choose a Market</h3>
-          <p className="text-sm text-obsidian-400">
+          <h3 className="font-bold text-qn-black mb-1 uppercase text-sm tracking-wide">Choose a Market</h3>
+          <p className="text-sm text-qn-gray-500">
             Browse prediction markets and pick your position (YES/NO).
           </p>
         </div>
 
-        <div className="bg-obsidian-800/50 rounded-xl p-5 border border-obsidian-700">
-          <div className="w-10 h-10 rounded-full bg-[rgb(56,190,231)]/20 flex items-center justify-center mb-3">
-            <span className="text-[rgb(56,190,231)] font-bold">3</span>
+        <div className="bg-white p-5 border-2 border-qn-black" style={{ boxShadow: '4px 4px 0px 0px rgba(28, 202, 91, 0.4)' }}>
+          <div className="w-10 h-10 bg-accent-green flex items-center justify-center mb-3">
+            <span className="text-white font-bold font-mono">3</span>
           </div>
-          <h3 className="font-semibold text-obsidian-100 mb-1">Buy Privately</h3>
-          <p className="text-sm text-obsidian-400">
+          <h3 className="font-bold text-qn-black mb-1 uppercase text-sm tracking-wide">Buy Privately</h3>
+          <p className="text-sm text-qn-gray-500">
             Enable Privacy Mode to break the on-chain link between your wallet and position.
           </p>
         </div>
@@ -64,18 +64,18 @@ function WelcomeScreen() {
 
       {/* Connect Button */}
       <div className="flex justify-center">
-        <Button
-          variant="primary"
+        <button
           onClick={() => setVisible(true)}
-          className="px-8 py-3 text-lg"
+          className="bg-qn-black text-white font-bold px-8 py-3 text-lg uppercase tracking-wider border-2 border-qn-black transition-all duration-100 hover:translate-x-[-2px] hover:translate-y-[-2px]"
+          style={{ boxShadow: '4px 4px 0px 0px rgb(13, 13, 13)' }}
         >
           Connect Phantom to Start
-        </Button>
+        </button>
       </div>
 
       {/* Markets Preview */}
-      <section className="pt-8 border-t border-obsidian-700">
-        <h2 className="text-lg font-semibold text-obsidian-100 mb-4">
+      <section className="pt-8 border-t-2 border-qn-black">
+        <h2 className="text-lg font-bold text-qn-black mb-4 uppercase tracking-wide">
           Available Markets
         </h2>
         <div className="space-y-4">
@@ -140,35 +140,35 @@ function ConnectedDashboard() {
   return (
     <div className="space-y-6">
       {/* Step Indicator */}
-      <div className="flex items-center justify-center gap-2 text-sm">
-        <span className="flex items-center gap-1.5 text-accent-green">
-          <span className="w-5 h-5 rounded-full bg-accent-green flex items-center justify-center text-xs text-black font-bold">✓</span>
+      <div className="flex items-center justify-center gap-2 text-sm font-mono uppercase tracking-wider">
+        <span className="flex items-center gap-1.5 text-accent-green font-bold">
+          <span className="w-5 h-5 bg-accent-green flex items-center justify-center text-xs text-white font-bold">✓</span>
           Connected
         </span>
-        <span className="w-8 h-px bg-obsidian-600"></span>
-        <span className="flex items-center gap-1.5 text-obsidian-400">
-          <span className="w-5 h-5 rounded-full bg-obsidian-700 flex items-center justify-center text-xs font-bold">2</span>
+        <span className="w-8 h-0.5 bg-qn-black"></span>
+        <span className="flex items-center gap-1.5 text-qn-gray-400">
+          <span className="w-5 h-5 border-2 border-qn-black flex items-center justify-center text-xs font-bold bg-white">2</span>
           Choose Market
         </span>
-        <span className="w-8 h-px bg-obsidian-600"></span>
-        <span className="flex items-center gap-1.5 text-obsidian-400">
-          <span className="w-5 h-5 rounded-full bg-obsidian-700 flex items-center justify-center text-xs font-bold">3</span>
+        <span className="w-8 h-0.5 bg-qn-gray-300"></span>
+        <span className="flex items-center gap-1.5 text-qn-gray-400">
+          <span className="w-5 h-5 border-2 border-qn-black flex items-center justify-center text-xs font-bold bg-white">3</span>
           Buy
         </span>
       </div>
 
       {/* Wallet Card */}
-      <Card className="bg-gradient-to-br from-obsidian-800 to-obsidian-900 border-accent-purple/30">
+      <div className="bg-white border-2 border-qn-black p-6" style={{ boxShadow: '4px 4px 0px 0px rgb(13, 13, 13)' }}>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <span className="text-xs font-medium text-accent-purple uppercase tracking-wider">
+            <span className="text-xs font-bold text-qn-gray-500 uppercase tracking-widest font-mono">
               Your Wallet
             </span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-obsidian-300 font-mono text-sm">{shortAddress}</span>
+              <span className="text-qn-gray-600 font-mono text-sm">{shortAddress}</span>
               <button
                 onClick={() => navigator.clipboard.writeText(address)}
-                className="text-obsidian-500 hover:text-obsidian-300"
+                className="text-qn-gray-400 hover:text-qn-black"
                 title="Copy"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,7 +179,7 @@ function ConnectedDashboard() {
                 href={`https://solscan.io/account/${address}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-obsidian-500 hover:text-obsidian-300"
+                className="text-qn-gray-400 hover:text-qn-black"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -189,49 +189,49 @@ function ConnectedDashboard() {
           </div>
           <button
             onClick={disconnect}
-            className="text-obsidian-500 hover:text-accent-red text-xs"
+            className="text-qn-gray-400 hover:text-accent-red text-xs font-bold uppercase tracking-wider font-mono"
           >
             Disconnect
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t-2 border-qn-gray-200">
           <div>
-            <span className="text-obsidian-500 text-xs">SOL</span>
-            <p className="text-xl font-semibold text-obsidian-100">
+            <span className="text-qn-gray-400 text-xs font-mono uppercase">SOL</span>
+            <p className="text-xl font-bold text-qn-black font-mono">
               {isLoadingBalance ? '...' : `${solBalance?.toFixed(4) || '0'}`}
             </p>
           </div>
           <div>
-            <span className="text-obsidian-500 text-xs">USDC</span>
-            <p className="text-xl font-semibold text-accent-green">
+            <span className="text-qn-gray-400 text-xs font-mono uppercase">USDC</span>
+            <p className="text-xl font-bold text-accent-green font-mono">
               {isLoadingBalance ? '...' : `$${usdcBalance?.toFixed(2) || '0.00'}`}
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Privacy Info Banner */}
-      <div className="rounded-xl p-4 border border-[rgb(56,190,231)]/30 bg-[rgb(56,190,231)]/5">
+      <div className="p-4 border-2 border-accent-green bg-accent-green/5" style={{ boxShadow: '4px 4px 0px 0px rgba(28, 202, 91, 0.3)' }}>
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-[rgb(56,190,231)]/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-accent-green flex items-center justify-center flex-shrink-0">
             <span className="text-xl">🔒</span>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-obsidian-100">
+            <h3 className="text-sm font-bold text-qn-black uppercase tracking-wide">
               How Privacy Mode Works
             </h3>
-            <p className="text-xs text-obsidian-400 mt-1">
-              When you buy with <span className="text-[rgb(56,190,231)]">Privacy Mode</span> enabled:
+            <p className="text-xs text-qn-gray-500 mt-1">
+              When you buy with <span className="text-accent-green font-bold">Privacy Mode</span> enabled:
             </p>
-            <ol className="text-xs text-obsidian-400 mt-2 space-y-1 list-decimal list-inside">
+            <ol className="text-xs text-qn-gray-500 mt-2 space-y-1 list-decimal list-inside">
               <li>Your USDC goes to a temporary wallet (you sign once in Phantom)</li>
               <li>That wallet deposits into Privacy Cash's ZK pool</li>
-              <li>A <span className="text-[rgb(56,190,231)]">new unlinked wallet</span> withdraws and places your order</li>
-              <li>Result: <span className="text-accent-green">No on-chain connection</span> between you and your position</li>
+              <li>A <span className="text-accent-green font-bold">new unlinked wallet</span> withdraws and places your order</li>
+              <li>Result: <span className="text-accent-green font-bold">No on-chain connection</span> between you and your position</li>
             </ol>
-            <p className="text-[10px] text-obsidian-500 mt-2">
-              Fee: 0.35% + ~0.006 SOL • Powered by Privacy Cash
+            <p className="text-[10px] text-qn-gray-400 mt-2 font-mono uppercase">
+              Fee: 0.35% + ~0.006 SOL | Powered by Privacy Cash
             </p>
           </div>
         </div>
@@ -242,11 +242,11 @@ function ConnectedDashboard() {
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setShowSubWallets(!showSubWallets)}
-            className="flex items-center gap-2 text-lg font-semibold text-obsidian-100 hover:text-obsidian-50"
+            className="flex items-center gap-2 text-lg font-bold text-qn-black hover:text-qn-gray-700 uppercase tracking-wide"
           >
-            <span className="text-[rgb(56,190,231)]">🔐</span>
+            <span>🔐</span>
             Privacy Wallets
-            <span className="text-xs text-obsidian-500">
+            <span className="text-xs text-qn-gray-400 font-mono">
               ({subWallets.length})
             </span>
             <svg
@@ -262,9 +262,9 @@ function ConnectedDashboard() {
 
         {showSubWallets && (
           <div className="mb-6">
-            <p className="text-sm text-obsidian-400 mb-4">
+            <p className="text-sm text-qn-gray-500 mb-4">
               These wallets receive your shares when using Privacy Mode.
-              They are <span className="text-[rgb(56,190,231)]">not linked</span> to your main wallet on-chain.
+              They are <span className="text-accent-green font-bold">not linked</span> to your main wallet on-chain.
             </p>
             <SubWalletList />
           </div>
@@ -274,12 +274,12 @@ function ConnectedDashboard() {
       {/* Markets Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-obsidian-100">
+          <h2 className="text-lg font-bold text-qn-black uppercase tracking-wide">
             Step 2: Choose a Market
           </h2>
         </div>
-        <p className="text-sm text-obsidian-400 mb-4">
-          Click <span className="text-accent-green">Buy Yes</span> or <span className="text-accent-red">Buy No</span> on any market.
+        <p className="text-sm text-qn-gray-500 mb-4">
+          Click <span className="text-accent-green font-bold">Buy Yes</span> or <span className="text-accent-red font-bold">Buy No</span> on any market.
           You'll see the Privacy Mode toggle in the order form.
         </p>
         <div className="space-y-4">

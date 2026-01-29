@@ -165,7 +165,7 @@ export async function encryptOrder(
   mxePublicKey: Uint8Array = MXE_PUBLIC_KEY_DEVNET
 ): Promise<EncryptedOrder> {
   // Generate ephemeral key pair
-  const ephemeralPrivateKey = x25519.utils.randomPrivateKey();
+  const ephemeralPrivateKey = x25519.utils.randomSecretKey();
   const ephemeralPublicKey = x25519.getPublicKey(ephemeralPrivateKey);
 
   // Derive shared secret via ECDH

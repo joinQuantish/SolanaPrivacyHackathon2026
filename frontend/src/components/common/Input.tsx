@@ -14,20 +14,20 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-obsidian-300 mb-1.5">
+        <label className="block text-xs font-bold text-qn-gray-600 mb-1.5 uppercase tracking-wider font-mono">
           {label}
         </label>
       )}
       <input
         className={`
           input-field
-          ${error ? 'border-accent-red focus:border-accent-red focus:ring-accent-red' : ''}
+          ${error ? 'border-accent-red focus:border-accent-red' : ''}
           ${className}
         `}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-accent-red">{error}</p>
+        <p className="mt-1 text-sm text-accent-red font-mono">{error}</p>
       )}
     </div>
   );

@@ -30,6 +30,33 @@ import {
   swapUsdcToSol,
   isMcpConfigured,
 } from '../services/mcp-wallet.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
+
+// Direct Solana RPC for balance queries
+const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+
+async function getOnChainBalances(publicKey: string): Promise<{ sol: number; usdc: number }> {
+  const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+  const pk = new PublicKey(publicKey);
+
+  // Get SOL balance
+  const solLamports = await connection.getBalance(pk);
+  const sol = solLamports / LAMPORTS_PER_SOL;
+
+  // Get USDC balance
+  let usdc = 0;
+  try {
+    const usdcAta = await getAssociatedTokenAddress(USDC_MINT, pk);
+    const account = await getAccount(connection, usdcAta);
+    usdc = Number(account.amount) / 1e6;
+  } catch {
+    // No USDC account yet
+  }
+
+  return { sol, usdc };
+}
 
 const router = Router();
 
@@ -260,28 +287,8 @@ router.get('/:pk/balances', async (req: Request, res: Response) => {
   try {
     const { pk } = req.params;
 
-    // Verify wallet exists in our database
-    const walletInfo = await getWalletByPublicKey(pk);
-    if (!walletInfo) {
-      res.status(404).json({
-        success: false,
-        error: 'Wallet not found',
-      });
-      return;
-    }
-
-    // Get balances from MCP
-    // Note: This gets balances for the default MCP wallet
-    // In a full implementation, we'd need per-wallet API keys
-    const balances = await getBalances();
-
-    if (!balances) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch balances',
-      });
-      return;
-    }
+    // Query Solana RPC directly for this wallet's balances
+    const balances = await getOnChainBalances(pk);
 
     res.json({
       success: true,

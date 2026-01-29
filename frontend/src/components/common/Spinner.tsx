@@ -16,8 +16,8 @@ export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
     <div
       className={`
         ${sizeClasses[size]}
-        border-obsidian-600 border-t-accent-purple
-        rounded-full animate-spin
+        border-qn-gray-300 border-t-qn-black
+        animate-spin
         ${className}
       `}
     />
@@ -26,7 +26,7 @@ export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
 
 export function FullPageSpinner() {
   return (
-    <div className="fixed inset-0 bg-obsidian-900 flex items-center justify-center">
+    <div className="fixed inset-0 bg-qn-bg flex items-center justify-center">
       <Spinner size="lg" />
     </div>
   );

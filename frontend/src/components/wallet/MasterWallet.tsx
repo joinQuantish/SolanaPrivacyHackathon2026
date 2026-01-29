@@ -31,29 +31,29 @@ export function MasterWallet() {
     <>
       <Card variant="master" className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-obsidian-100">
+          <h2 className="text-lg font-bold text-qn-black uppercase tracking-wide">
             {master.label}
           </h2>
-          <span className="badge badge-purple">Master</span>
+          <span className="text-xs font-bold uppercase tracking-wider font-mono px-2 py-0.5 border-2 border-qn-black text-qn-black">Master</span>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-obsidian-900/50 rounded-xl p-4">
+          <div className="bg-qn-gray-100 border-2 border-qn-gray-300 p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-blue-500" />
-              <span className="text-sm text-obsidian-400">SOL</span>
+              <div className="w-4 h-4 bg-qn-black" />
+              <span className="text-xs text-qn-gray-400 font-mono uppercase">SOL</span>
             </div>
-            <div className="text-2xl font-bold text-obsidian-50">
+            <div className="text-2xl font-bold text-qn-black font-mono">
               {walletBalances?.sol?.toFixed(4) ?? '—'}
             </div>
           </div>
 
-          <div className="bg-obsidian-900/50 rounded-xl p-4">
+          <div className="bg-qn-gray-100 border-2 border-qn-gray-300 p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-emerald-500" />
-              <span className="text-sm text-obsidian-400">USDC</span>
+              <div className="w-4 h-4 bg-accent-green" />
+              <span className="text-xs text-qn-gray-400 font-mono uppercase">USDC</span>
             </div>
-            <div className="text-2xl font-bold text-obsidian-50">
+            <div className="text-2xl font-bold text-qn-black font-mono">
               ${walletBalances?.usdc?.toFixed(2) ?? '—'}
             </div>
           </div>
@@ -61,12 +61,12 @@ export function MasterWallet() {
 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <code className="text-sm text-obsidian-400 font-mono">
+            <code className="text-sm text-qn-gray-500 font-mono">
               {formatAddress(master.publicKey)}
             </code>
             <button
               onClick={copyAddress}
-              className="text-obsidian-400 hover:text-obsidian-200 transition-colors"
+              className="text-qn-gray-400 hover:text-qn-black transition-colors"
               title="Copy address"
             >
               {copied ? (
@@ -81,7 +81,7 @@ export function MasterWallet() {
             </button>
             <button
               onClick={openExplorer}
-              className="text-obsidian-400 hover:text-obsidian-200 transition-colors"
+              className="text-qn-gray-400 hover:text-qn-black transition-colors"
               title="View on Solscan"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@ export function MasterWallet() {
           </div>
           <button
             onClick={() => refreshBalances(master.publicKey)}
-            className="text-obsidian-400 hover:text-obsidian-200 transition-colors"
+            className="text-qn-gray-400 hover:text-qn-black transition-colors"
             title="Refresh balances"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

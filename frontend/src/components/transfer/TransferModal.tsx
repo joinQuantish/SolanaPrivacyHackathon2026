@@ -68,19 +68,19 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
     return (
       <Modal isOpen={isOpen} onClose={handleClose} title="Transfer Successful">
         <div className="text-center py-4">
-          <div className="w-16 h-16 bg-accent-green/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-accent-green/10 border-2 border-accent-green flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-accent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-obsidian-200 mb-4">
+          <p className="text-qn-gray-600 mb-4 font-mono">
             Successfully sent {amount} {token}
           </p>
           <a
             href={`https://solscan.io/tx/${txSignature}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent-purple hover:text-accent-purple/80 text-sm"
+            className="text-accent-green hover:text-accent-green/80 text-sm font-bold uppercase"
           >
             View on Solscan →
           </a>
@@ -97,7 +97,7 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Token Selection */}
         <div>
-          <label className="block text-sm font-medium text-obsidian-300 mb-2">
+          <label className="block text-xs font-bold text-qn-gray-600 uppercase tracking-wider font-mono mb-2">
             Token
           </label>
           <div className="flex gap-2">
@@ -105,26 +105,26 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
               type="button"
               onClick={() => setToken('USDC')}
               className={`
-                flex-1 py-2 px-3 rounded-lg border transition-all flex items-center justify-center gap-2
+                flex-1 py-2 px-3 border-2 transition-all flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-wider
                 ${token === 'USDC'
                   ? 'border-accent-green bg-accent-green/10 text-accent-green'
-                  : 'border-obsidian-600 text-obsidian-400 hover:border-obsidian-500'}
+                  : 'border-qn-gray-300 text-qn-gray-400 hover:border-qn-black'}
               `}
             >
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-green-400 to-emerald-500" />
+              <div className="w-4 h-4 bg-accent-green" />
               USDC
             </button>
             <button
               type="button"
               onClick={() => setToken('SOL')}
               className={`
-                flex-1 py-2 px-3 rounded-lg border transition-all flex items-center justify-center gap-2
+                flex-1 py-2 px-3 border-2 transition-all flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-wider
                 ${token === 'SOL'
-                  ? 'border-accent-purple bg-accent-purple/10 text-accent-purple'
-                  : 'border-obsidian-600 text-obsidian-400 hover:border-obsidian-500'}
+                  ? 'border-qn-black bg-qn-black/5 text-qn-black'
+                  : 'border-qn-gray-300 text-qn-gray-400 hover:border-qn-black'}
               `}
             >
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-purple-400 to-blue-500" />
+              <div className="w-4 h-4 bg-qn-black" />
               SOL
             </button>
           </div>
@@ -132,13 +132,13 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
 
         {/* From */}
         <div>
-          <label className="block text-sm font-medium text-obsidian-300 mb-1.5">
+          <label className="block text-xs font-bold text-qn-gray-600 uppercase tracking-wider font-mono mb-1.5">
             From
           </label>
-          <div className="bg-obsidian-900 border border-obsidian-600 rounded-lg px-4 py-3">
+          <div className="bg-qn-gray-100 border-2 border-qn-black px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="text-obsidian-200">{sourceWallet.label}</span>
-              <span className="text-sm text-obsidian-400">
+              <span className="text-qn-black font-bold uppercase text-sm">{sourceWallet.label}</span>
+              <span className="text-sm text-qn-gray-500 font-mono">
                 {maxAmount?.toFixed(token === 'SOL' ? 4 : 2) ?? '—'} {token}
               </span>
             </div>
@@ -147,7 +147,7 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
 
         {/* To */}
         <div>
-          <label className="block text-sm font-medium text-obsidian-300 mb-1.5">
+          <label className="block text-xs font-bold text-qn-gray-600 uppercase tracking-wider font-mono mb-1.5">
             To
           </label>
           {allWallets.length > 0 && (
@@ -178,7 +178,7 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
 
         {/* Amount */}
         <div>
-          <label className="block text-sm font-medium text-obsidian-300 mb-1.5">
+          <label className="block text-xs font-bold text-qn-gray-600 uppercase tracking-wider font-mono mb-1.5">
             Amount
           </label>
           <div className="relative">
@@ -193,7 +193,7 @@ export function TransferModal({ isOpen, onClose, sourceWallet }: TransferModalPr
             <button
               type="button"
               onClick={setMax}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-accent-purple hover:text-accent-purple/80"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-accent-green hover:text-accent-green/80 font-bold uppercase"
             >
               MAX
             </button>

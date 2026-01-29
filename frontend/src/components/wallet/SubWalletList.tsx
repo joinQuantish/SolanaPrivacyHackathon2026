@@ -11,7 +11,7 @@ export function SubWalletList() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-obsidian-100">
+        <h2 className="text-lg font-bold text-qn-black uppercase tracking-wide">
           Sub-Wallets
         </h2>
         <Button
@@ -27,8 +27,8 @@ export function SubWalletList() {
       </div>
 
       {subWallets.length === 0 ? (
-        <div className="text-center py-8 bg-obsidian-800/50 rounded-xl border border-dashed border-obsidian-700">
-          <p className="text-obsidian-400 mb-3">No sub-wallets yet</p>
+        <div className="text-center py-8 bg-white border-2 border-dashed border-qn-black">
+          <p className="text-qn-gray-500 mb-3">No sub-wallets yet</p>
           <Button
             variant="ghost"
             size="sm"

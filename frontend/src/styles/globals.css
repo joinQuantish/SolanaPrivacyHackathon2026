@@ -3,36 +3,36 @@
 @tailwind utilities;
 
 :root {
-  /* Axiom.trade inspired dark theme */
-  --background: #06070B;
-  --background-secondary: rgb(16, 17, 20);
-  --background-tertiary: rgb(24, 24, 26);
-  --background-row-hover: rgb(30, 31, 35);
+  /* Quantish brutalist light theme */
+  --background: #f5f5f5;
+  --background-secondary: #ffffff;
+  --background-tertiary: #ffffff;
+  --background-row-hover: #e5e5e5;
 
-  --text-primary: rgb(252, 252, 252);
-  --text-secondary: rgb(200, 201, 209);
-  --text-tertiary: rgb(119, 122, 140);
+  --text-primary: #0d0d0d;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
 
-  --primary-color: rgb(82, 111, 255);
-  --primary-color-hover: rgb(102, 131, 255);
+  --primary-color: #0d0d0d;
+  --primary-color-hover: #262626;
 
-  --increase: rgb(47, 227, 172);
-  --increase-hover: rgb(91, 231, 189);
-  --chart-up: rgb(11, 153, 129);
+  --increase: #1cca5b;
+  --increase-hover: #16a34a;
+  --chart-up: #22c55e;
 
-  --decrease: rgb(236, 57, 122);
-  --decrease-hover: rgb(248, 100, 154);
-  --chart-down: rgb(242, 53, 70);
+  --decrease: #ef4343;
+  --decrease-hover: #dc2626;
+  --chart-down: #ef4444;
 
-  --border-subtle: rgb(31, 31, 35);
-  --primary-stroke: rgb(34, 36, 45);
-  --secondary-stroke: rgb(50, 53, 66);
+  --border-subtle: #e5e5e5;
+  --primary-stroke: #0d0d0d;
+  --secondary-stroke: #a3a3a3;
 
-  --primary-green: rgb(18, 175, 128);
-  --primary-red: rgb(242, 84, 97);
-  --primary-orange: rgb(226, 124, 77);
-  --primary-yellow: rgb(220, 193, 60);
-  --primary-light-blue: rgb(82, 197, 255);
+  --primary-green: #1cca5b;
+  --primary-red: #ef4343;
+  --primary-orange: #d97706;
+  --primary-yellow: #eab308;
+  --primary-light-blue: #0ea5e9;
 
   /* Legacy mapping */
   --bg-primary: var(--background);
@@ -46,7 +46,7 @@
 body {
   background-color: var(--background);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Space Grotesk', ui-sans-serif, -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
@@ -59,98 +59,174 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-obsidian-900;
+  background: #f5f5f5;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-obsidian-600 rounded-full;
+  background: #a3a3a3;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-obsidian-500;
+  background: #737373;
 }
 
 /* Card styles */
-@layer components {
-  .wallet-card {
-    @apply bg-obsidian-800 border border-obsidian-700 rounded-xl p-4
-           transition-all duration-200 hover:border-accent-purple/50
-           hover:shadow-lg hover:shadow-accent-purple/10;
-  }
-
-  .wallet-card-master {
-    @apply bg-gradient-to-br from-obsidian-800 to-obsidian-900
-           border border-obsidian-600 rounded-2xl p-6
-           shadow-xl shadow-accent-purple/5;
-  }
-
-  .btn-primary {
-    @apply bg-accent-purple hover:bg-accent-purple/80
-           text-white font-medium px-4 py-2 rounded-lg
-           transition-all duration-200
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-secondary {
-    @apply bg-obsidian-700 hover:bg-obsidian-600
-           text-obsidian-100 font-medium px-4 py-2 rounded-lg
-           transition-all duration-200 border border-obsidian-600
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-ghost {
-    @apply hover:bg-obsidian-700/50
-           text-obsidian-300 hover:text-obsidian-100
-           font-medium px-4 py-2 rounded-lg
-           transition-all duration-200;
-  }
-
-  .input-field {
-    @apply bg-obsidian-900 border border-obsidian-600 rounded-lg
-           px-4 py-3 text-obsidian-50 placeholder-obsidian-500
-           focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple
-           transition-all duration-200 w-full;
-  }
-
-  .modal-overlay {
-    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50
-           flex items-center justify-center p-4;
-  }
-
-  .modal-content {
-    @apply bg-obsidian-800 border border-obsidian-700 rounded-2xl
-           shadow-2xl max-w-md w-full max-h-[90vh] overflow-auto;
-  }
-
-  .badge {
-    @apply px-2 py-0.5 rounded-full text-xs font-medium;
-  }
-
-  .badge-green {
-    @apply bg-accent-green/20 text-accent-green;
-  }
-
-  .badge-red {
-    @apply bg-accent-red/20 text-accent-red;
-  }
-
-  .badge-yellow {
-    @apply bg-accent-yellow/20 text-accent-yellow;
-  }
-
-  .badge-purple {
-    @apply bg-accent-purple/20 text-accent-purple;
-  }
+.wallet-card {
+  background-color: #ffffff;
+  border: 2px solid #0d0d0d;
+  padding: 1rem;
+  transition: all 150ms;
+  box-shadow: 2px 2px 0px 0px rgb(13, 13, 13);
 }
 
-/* Glass morphism effect */
-.glass {
-  @apply bg-obsidian-800/80 backdrop-blur-xl border border-obsidian-700/50;
+.wallet-card:hover {
+  box-shadow: 4px 4px 0px 0px rgb(13, 13, 13);
+  transform: translate(-1px, -1px);
 }
 
-/* Gradient text */
+.wallet-card-master {
+  background-color: #ffffff;
+  border: 2px solid #0d0d0d;
+  padding: 1.5rem;
+  box-shadow: 4px 4px 0px 0px rgb(13, 13, 13);
+}
+
+.btn-primary {
+  background-color: #0d0d0d;
+  color: #ffffff;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: 2px solid #0d0d0d;
+  transition: all 150ms;
+  box-shadow: 2px 2px 0px 0px rgb(13, 13, 13);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 4px 4px 0px 0px rgb(13, 13, 13);
+  transform: translate(-1px, -1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  box-shadow: 0px 0px 0px 0px rgb(13, 13, 13);
+  transform: translate(2px, 2px);
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: #0d0d0d;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: 2px solid #0d0d0d;
+  transition: all 150ms;
+  box-shadow: 2px 2px 0px 0px rgb(13, 13, 13);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  box-shadow: 4px 4px 0px 0px rgb(13, 13, 13);
+  transform: translate(-1px, -1px);
+}
+
+.btn-ghost {
+  color: #737373;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: all 150ms;
+}
+
+.btn-ghost:hover {
+  color: #0d0d0d;
+}
+
+.input-field {
+  background-color: #ffffff;
+  border: 2px solid #0d0d0d;
+  padding: 0.75rem 1rem;
+  color: #0d0d0d;
+  width: 100%;
+  font-family: 'Space Mono', monospace;
+  transition: all 150ms;
+  box-shadow: 2px 2px 0px 0px rgba(13, 13, 13, 0.1) inset;
+}
+
+.input-field::placeholder {
+  color: #a3a3a3;
+}
+
+.input-field:focus {
+  outline: none;
+  box-shadow: 0px 0px 0px 2px rgb(13, 13, 13);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  border: 2px solid #0d0d0d;
+  max-width: 28rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 8px 8px 0px 0px rgb(13, 13, 13);
+}
+
+.badge {
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid #0d0d0d;
+}
+
+.badge-green {
+  background-color: rgba(28, 202, 91, 0.1);
+  color: #1cca5b;
+  border-color: #1cca5b;
+}
+
+.badge-red {
+  background-color: rgba(239, 67, 67, 0.1);
+  color: #ef4343;
+  border-color: #ef4343;
+}
+
+.badge-yellow {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  border-color: #d97706;
+}
+
+.badge-purple {
+  background-color: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+  border-color: #7c3aed;
+}
+
+/* Brutalist text styles */
 .gradient-text {
-  @apply bg-gradient-to-r from-accent-purple to-accent-blue bg-clip-text text-transparent;
+  color: #0d0d0d;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
 }
 
 /* Loading spinner */
@@ -161,7 +237,10 @@ body {
 }
 
 .spinner {
-  @apply w-5 h-5 border-2 border-obsidian-600 border-t-accent-purple rounded-full;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #d9d9d9;
+  border-top-color: #0d0d0d;
   animation: spin 0.8s linear infinite;
 }
 
@@ -181,50 +260,49 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
-/* Axiom-style table */
+/* Brutalist table */
 .market-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
 }
 
 .market-table th {
-  background-color: var(--background-secondary);
+  background-color: #ffffff;
   color: var(--text-tertiary);
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--primary-stroke);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  border-bottom: 2px solid #0d0d0d;
+  font-family: 'Space Mono', monospace;
 }
 
 .market-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid #e5e5e5;
   vertical-align: middle;
 }
 
 .market-table tbody tr {
-  background-color: var(--background);
-  transition: background-color 0.15s ease;
+  background-color: #ffffff;
+  transition: background-color 0.1s ease;
 }
 
 .market-table tbody tr:hover {
-  background-color: var(--background-row-hover);
+  background-color: #f5f5f5;
 }
 
 /* Price colors */
 .price-up {
   color: var(--increase);
+  font-weight: 600;
 }
 
 .price-down {
   color: var(--decrease);
+  font-weight: 600;
 }
 
 .price-neutral {
@@ -243,7 +321,6 @@ body {
 .mini-chart .bar {
   flex: 1;
   background: var(--chart-up);
-  border-radius: 1px;
   min-height: 2px;
 }
 
@@ -251,68 +328,84 @@ body {
   background: var(--chart-down);
 }
 
-/* Action buttons */
+/* Action buttons - brutalist style */
 .btn-buy {
-  background-color: var(--increase);
-  color: var(--background);
-  font-weight: 600;
+  background-color: #ffffff;
+  color: var(--increase);
+  font-weight: 700;
   padding: 6px 16px;
-  border-radius: 6px;
   font-size: 13px;
-  transition: all 0.15s ease;
+  border: 2px solid var(--increase);
+  transition: all 0.1s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Space Mono', monospace;
 }
 
 .btn-buy:hover {
-  background-color: var(--increase-hover);
+  background-color: var(--increase);
+  color: white;
+  box-shadow: 2px 2px 0px 0px rgba(28, 202, 91, 0.4);
 }
 
 .btn-sell {
-  background-color: var(--decrease);
-  color: white;
-  font-weight: 600;
+  background-color: #ffffff;
+  color: var(--decrease);
+  font-weight: 700;
   padding: 6px 16px;
-  border-radius: 6px;
   font-size: 13px;
-  transition: all 0.15s ease;
+  border: 2px solid var(--decrease);
+  transition: all 0.1s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Space Mono', monospace;
 }
 
 .btn-sell:hover {
-  background-color: var(--decrease-hover);
+  background-color: var(--decrease);
+  color: white;
+  box-shadow: 2px 2px 0px 0px rgba(239, 67, 67, 0.4);
 }
 
-/* Percentage badge */
+/* Percentage badge - brutalist */
 .pct-badge {
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
+  font-family: 'Space Mono', monospace;
+  border: 1px solid;
 }
 
 .pct-badge.up {
-  background-color: rgba(47, 227, 172, 0.15);
+  background-color: rgba(28, 202, 91, 0.1);
   color: var(--increase);
+  border-color: var(--increase);
 }
 
 .pct-badge.down {
-  background-color: rgba(236, 57, 122, 0.15);
+  background-color: rgba(239, 67, 67, 0.1);
   color: var(--decrease);
+  border-color: var(--decrease);
 }
 
 /* Market name styling */
 .market-name {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: -0.02em;
 }
 
 .market-name .ticker {
   font-size: 11px;
   color: var(--text-tertiary);
-  font-family: monospace;
+  font-family: 'Space Mono', monospace;
 }
 
 /* Volume styling */
@@ -320,4 +413,5 @@ body {
   color: var(--text-secondary);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+  font-family: 'Space Mono', monospace;
 }
