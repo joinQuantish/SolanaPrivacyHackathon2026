@@ -20,7 +20,9 @@ Built for the **Solana Privacy Hackathon 2026**
 
 ## Demo Video
 
-https://github.com/joinQuantish/SolanaPrivacyHackathon2026/raw/main/demo.mp4
+[![Demo Video](https://img.youtube.com/vi/oXs3ccEjyxc/maxresdefault.jpg)](https://youtu.be/oXs3ccEjyxc)
+
+**Watch:** https://youtu.be/oXs3ccEjyxc
 
 ---
 
