@@ -10,7 +10,7 @@
 > **Privacy-preserving prediction market relay with three independent privacy layers:**
 > wallet unlinkability (Privacy Cash), verifiable execution (Noir ZK), and hidden order amounts (Arcium MPC).
 
-Built for the **Solana Privacy Hackathon 2025**
+Built for the **Solana Privacy Hackathon 2026**
 
 ---
 
@@ -129,8 +129,8 @@ These are **separate but complementary** technologies:
 
 ```bash
 # Clone the repository
-git clone https://github.com/joinQuantish/SolanaPrivacyHackathon2025.git
-cd SolanaPrivacyHackathon2025
+git clone https://github.com/joinQuantish/SolanaPrivacyHackathon2026.git
+cd SolanaPrivacyHackathon2026
 
 # Copy environment files
 cp .env.example .env
@@ -370,4 +370,4 @@ MIT
 
 ---
 
-Built for the **Solana Privacy Hackathon 2025**
+Built for the **Solana Privacy Hackathon 2026**
