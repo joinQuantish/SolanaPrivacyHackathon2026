@@ -1,7 +1,7 @@
 /**
  * PostgreSQL Database Service
  *
- * Handles database connections and wallet storage for the Obsidian Wallet UI.
+ * Handles database connections and wallet storage for the Quantish Privacy Relay.
  */
 
 import pg from 'pg';

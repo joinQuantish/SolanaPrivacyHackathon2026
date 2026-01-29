@@ -8,7 +8,7 @@
 
 ## On-Chain Deployment Summary
 
-### Obsidian MPC Anchor Program
+### Quantish Prediction Privacy MPC Anchor Program
 | Field | Value |
 |-------|-------|
 | **Program ID** | `B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd` |
@@ -46,7 +46,7 @@ MCP_API_KEY=pk_kalshi_YOUR_API_KEY_HERE  # Get from Quantish
 ARCIUM_MPC_ENABLED=true
 ARCIUM_CLUSTER_OFFSET=123
 SOLANA_RPC_URL=https://api.devnet.solana.com
-OBSIDIAN_MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
+MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
 MXE_ACCOUNT_ADDRESS=CUx5EJ6PtgWTHfiqmYbMgeDepaiqj1xu3Y2C6Q11Nqkb
 ```
 

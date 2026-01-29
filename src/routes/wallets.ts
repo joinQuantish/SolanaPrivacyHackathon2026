@@ -120,10 +120,10 @@ router.post('/create', async (req: Request, res: Response) => {
     }
 
     // Generate unique external ID for MCP
-    const externalId = `obsidian-${uuidv4()}`;
+    const externalId = `quantish-${uuidv4()}`;
 
     // Create wallet via MCP
-    const mcpWallet = await mcpCreateWallet(externalId, label || 'Obsidian Wallet');
+    const mcpWallet = await mcpCreateWallet(externalId, label || 'Quantish Wallet');
     if (!mcpWallet) {
       res.status(500).json({
         success: false,

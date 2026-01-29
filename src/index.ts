@@ -28,7 +28,7 @@ app.get('/', (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
-    service: 'obsidian-prover',
+    service: 'quantish-privacy-relay',
     timestamp: new Date().toISOString(),
   });
 });
@@ -70,7 +70,7 @@ app.use(
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`Obsidian Prover service running on port ${PORT}`);
+  console.log(`Quantish Privacy Relay running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
 
   // Initialize database

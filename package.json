@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-prover",
+  "name": "quantish-privacy-relay",
   "version": "1.0.0",
-  "description": "ZK prover service for Obsidian Relay batch verification",
+  "description": "Quantish Prediction Privacy Relay - ZK prover service for batch verification",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

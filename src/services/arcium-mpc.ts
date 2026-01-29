@@ -22,9 +22,9 @@ import { getRelayWallet } from './wallet.js';
 // Arcium main program on Solana (from @arcium-hq/client ARCIUM_ADDR)
 const ARCIUM_PROGRAM_ID = new PublicKey('F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk');
 
-// Our Obsidian MPC program ID (deployed to devnet on Cluster 1)
+// Our MPC program ID (deployed to devnet on Cluster 1)
 const OBSIDIAN_MPC_PROGRAM = new PublicKey(
-  process.env.OBSIDIAN_MPC_PROGRAM_ID || '8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc'
+  process.env.MPC_PROGRAM_ID || process.env.OBSIDIAN_MPC_PROGRAM_ID || '8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc'
 );
 
 // Arcium devnet cluster offset - Cluster 1 has active nodes!
@@ -95,7 +95,7 @@ class ArciumMpcService {
 
     console.log(`[ArciumMPC] === Arcium MPC Service ===`);
     console.log(`[ArciumMPC] Solana RPC: ${SOLANA_RPC_URL_DEVNET}`);
-    console.log(`[ArciumMPC] Obsidian Program: ${OBSIDIAN_MPC_PROGRAM.toBase58()}`);
+    console.log(`[ArciumMPC] MPC Program: ${OBSIDIAN_MPC_PROGRAM.toBase58()}`);
     console.log(`[ArciumMPC] Arcium Program: ${ARCIUM_PROGRAM_ID.toBase58()}`);
     console.log(`[ArciumMPC] Cluster Offset: ${this.clusterOffset}`);
     console.log(`[ArciumMPC] MXE Account: ${MXE_ACCOUNT_ADDRESS.toBase58()}`);
@@ -508,7 +508,7 @@ class ArciumMpcService {
    */
   async getDiagnostics(): Promise<{
     solanaRpc: string;
-    obsidianProgram: string;
+    mpcProgram: string;
     arciumProgram: string;
     clusterOffset: number;
     mxeAccount: string;
@@ -536,14 +536,14 @@ class ArciumMpcService {
       issues.push(`Failed to check MXE account: ${error}`);
     }
 
-    // Check Obsidian program
+    // Check MPC program
     try {
       const programInfo = await this.connection.getAccountInfo(OBSIDIAN_MPC_PROGRAM);
       if (!programInfo) {
-        issues.push('Obsidian MPC program not deployed');
+        issues.push('MPC program not deployed');
       }
     } catch (error) {
-      issues.push(`Failed to check Obsidian program: ${error}`);
+      issues.push(`Failed to check MPC program: ${error}`);
     }
 
     // Determine overall status
@@ -560,7 +560,7 @@ class ArciumMpcService {
 
     return {
       solanaRpc: SOLANA_RPC_URL_DEVNET,
-      obsidianProgram: OBSIDIAN_MPC_PROGRAM.toBase58(),
+      mpcProgram: OBSIDIAN_MPC_PROGRAM.toBase58(),
       arciumProgram: ARCIUM_PROGRAM_ID.toBase58(),
       clusterOffset: this.clusterOffset,
       mxeAccount: MXE_ACCOUNT_ADDRESS.toBase58(),

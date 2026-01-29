@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to integrate with the Obsidian Relay service for placing prediction market orders with multi-wallet distribution.
+This guide explains how to integrate with the Quantish Prediction Privacy Relay service for placing prediction market orders with multi-wallet distribution.
 
 ## Order Flow
 

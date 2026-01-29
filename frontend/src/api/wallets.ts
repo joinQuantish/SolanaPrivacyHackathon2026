@@ -64,8 +64,7 @@ export async function createSubWallet(
     publicKey: keypair.publicKey.toBase58(),
     label: label,
     color: color || '#8b5cf6',
-    isMaster: false,
-    createdAt: new Date().toISOString(),
+    type: 'sub',
   };
 
   // Store keypair in localStorage (for demo only - not production safe!)
@@ -139,8 +138,7 @@ export async function validateSession(): Promise<SessionValidateResponse | null>
     publicKey: w.publicKey,
     label: w.label,
     color: w.color,
-    isMaster: false,
-    createdAt: w.createdAt,
+    type: 'sub' as const,
   }));
 
   // If we have local wallets, return them without needing a session
@@ -152,8 +150,7 @@ export async function validateSession(): Promise<SessionValidateResponse | null>
         id: 'local-master',
         publicKey: 'local',
         label: 'Local Wallets',
-        isMaster: true,
-        createdAt: new Date().toISOString(),
+        type: 'master',
       },
       subWallets,
     };

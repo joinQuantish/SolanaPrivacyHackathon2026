@@ -1,4 +1,4 @@
-# Obsidian Relay + Arcium MPC Deployment Guide
+# Quantish Prediction Privacy Relay + Arcium MPC Deployment Guide
 
 ## Hackathon Submission: Solana Privacy Hackathon - Arcium Track
 
@@ -23,7 +23,7 @@ MCP_API_KEY=pk_kalshi_xxxx
 ARCIUM_MPC_ENABLED=true
 ARCIUM_CLUSTER_OFFSET=123
 SOLANA_RPC_URL=https://api.devnet.solana.com
-OBSIDIAN_MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
+MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
 MXE_ACCOUNT_ADDRESS=CUx5EJ6PtgWTHfiqmYbMgeDepaiqj1xu3Y2C6Q11Nqkb
 
 # Relay Wallet (for signing Solana transactions)
@@ -44,7 +44,7 @@ RELAY_WALLET_PRIVATE_KEY=<base58 encoded private key>
    railway variables set ARCIUM_MPC_ENABLED=true
    railway variables set ARCIUM_CLUSTER_OFFSET=123
    railway variables set SOLANA_RPC_URL=https://api.devnet.solana.com
-   railway variables set OBSIDIAN_MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
+   railway variables set MPC_PROGRAM_ID=B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd
    railway variables set MXE_ACCOUNT_ADDRESS=CUx5EJ6PtgWTHfiqmYbMgeDepaiqj1xu3Y2C6Q11Nqkb
    ```
 
@@ -66,7 +66,7 @@ npm run dev
 
 | Program | Address |
 |---------|---------|
-| Obsidian MPC Program | `B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd` |
+| Quantish Prediction Privacy MPC Program | `B5sAU4NDJPFVTE9mfKyzow7vXfpZR9vdpzKdfAie3QWd` |
 | Arcium Program | `F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk` |
 | MXE Account | `CUx5EJ6PtgWTHfiqmYbMgeDepaiqj1xu3Y2C6Q11Nqkb` |
 

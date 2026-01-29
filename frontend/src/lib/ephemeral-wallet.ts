@@ -26,7 +26,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
-const EPHEMERAL_STORAGE_KEY = 'obsidian_privacy_wallets';
+const EPHEMERAL_STORAGE_KEY = 'quantish_privacy_wallets';
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const USDC_DECIMALS = 6;
 

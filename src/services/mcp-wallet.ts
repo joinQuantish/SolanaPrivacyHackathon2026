@@ -191,7 +191,7 @@ export async function createWallet(
     message?: string;
   }>('kalshi_signup', {
     externalId,
-    keyName: keyName || `obsidian-${externalId}`,
+    keyName: keyName || `quantish-${externalId}`,
   });
 
   if (!result?.publicKey) {

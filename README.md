@@ -1,4 +1,4 @@
-# Obsidian Relay - Private Prediction Markets
+# Quantish Prediction Privacy Relay
 
 ![Solana](https://img.shields.io/badge/Solana-black?style=flat&logo=solana&logoColor=14F195)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
@@ -68,7 +68,7 @@ These are **separate but complementary** technologies:
 ### Noir (Aztec) - ZK Batch Verification
 **What it does:** Generates ZK proofs that relay distributed shares correctly
 
-**Where:** `circuits/obsidian_batch_verifier/src/main.nr`, `src/services/prover.ts`
+**Where:** `circuits/batch_verifier/src/main.nr`, `src/services/prover.ts`
 
 **Circuit proves:**
 - Commitment hashes match via Poseidon hash
@@ -81,7 +81,7 @@ These are **separate but complementary** technologies:
 ### Arcium MPC - Hidden Order Amounts
 **What it does:** Encrypts order amounts so relay cannot see individual values
 
-**Where:** `src/services/arcium-mpc.ts`, `frontend/src/utils/arcium-encrypt.ts`, `arcium-relay/programs/obsidian_mpc/`
+**Where:** `src/services/arcium-mpc.ts`, `frontend/src/utils/arcium-encrypt.ts`, `arcium-relay/programs/`
 
 **On-chain program:** 4 computation definitions registered for MPC operations
 
@@ -117,7 +117,7 @@ These are **separate but complementary** technologies:
 
 | Component | Address | Network | Explorer |
 |-----------|---------|---------|----------|
-| Obsidian MPC Program | `8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc` | Devnet | [Solscan](https://solscan.io/account/8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc?cluster=devnet) |
+| MPC Program | `8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc` | Devnet | [Solscan](https://solscan.io/account/8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc?cluster=devnet) |
 | MXE Account | `2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG` | Devnet | [Solscan](https://solscan.io/account/2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG?cluster=devnet) |
 | Arcium Program | `F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk` | Devnet | System |
 | Privacy Pool | `AfTSjfnT7M88XipRjPGLgDCcqcVfnrePrtuvNBF74hhP` | Devnet | [Solscan](https://solscan.io/account/AfTSjfnT7M88XipRjPGLgDCcqcVfnrePrtuvNBF74hhP?cluster=devnet) |
@@ -129,8 +129,8 @@ These are **separate but complementary** technologies:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/obsidian-relay
-cd obsidian-relay
+git clone https://github.com/joinQuantish/SolanaPrivacyHackathon2025.git
+cd SolanaPrivacyHackathon2025
 
 # Copy environment files
 cp .env.example .env
@@ -207,7 +207,7 @@ Backend runs on `http://localhost:3001`, frontend on `http://localhost:5173`.
 ## Project Structure
 
 ```
-obsidian-relay/
+quantish-privacy-relay/
 ├── src/                      # Backend relay service
 │   ├── routes/               # API routes
 │   ├── services/             # Business logic
@@ -236,7 +236,7 @@ obsidian-relay/
 │   └── scripts/              # Deployment scripts
 │
 └── circuits/                 # Noir ZK circuits
-    └── obsidian_batch_verifier/
+    └── batch_verifier/
 ```
 
 ---
@@ -279,7 +279,7 @@ PORT=3001
 ARCIUM_MPC_ENABLED=true
 ARCIUM_CLUSTER_OFFSET=1
 SOLANA_RPC_URL_DEVNET=https://api.devnet.solana.com
-OBSIDIAN_MPC_PROGRAM_ID=8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc
+MPC_PROGRAM_ID=8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc
 MXE_ACCOUNT_ADDRESS=2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG
 PRIVACY_POOL_PROGRAM_ID=AfTSjfnT7M88XipRjPGLgDCcqcVfnrePrtuvNBF74hhP
 ```
