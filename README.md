@@ -156,13 +156,24 @@ These are **separate but complementary** technologies:
 
 ## Deployed Addresses
 
+### Programs & Accounts
+
 | Component | Address | Network | Explorer |
 |-----------|---------|---------|----------|
 | MPC Program | `8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc` | Devnet | [Solscan](https://solscan.io/account/8postM9mUCTKTu6a1vkrhfg8erso2g8eHo8bmc9JZjZc?cluster=devnet) |
-| MXE Account | `2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG` | Devnet | [Solscan](https://solscan.io/account/2EYXHVLZGSTGmPN3VFdHb6DroZBfpir6mgYZuFvpxfJG?cluster=devnet) |
-| Arcium Program | `F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk` | Devnet | System |
+| MPC Program (Alt) | `9P88Ayn2WKLWhtCgUv8A3YkxTWDRnoU3QSLdWftaWtAo` | Devnet | [Solscan](https://solscan.io/account/9P88Ayn2WKLWhtCgUv8A3YkxTWDRnoU3QSLdWftaWtAo?cluster=devnet) |
+| Arcium Program | `F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk` | Devnet | [Solscan](https://solscan.io/account/F3G6Q9tRicyznCqcZLydJ6RxkwDSBeHWM458J7V6aeyk?cluster=devnet) |
 | Privacy Pool | `AfTSjfnT7M88XipRjPGLgDCcqcVfnrePrtuvNBF74hhP` | Devnet | [Solscan](https://solscan.io/account/AfTSjfnT7M88XipRjPGLgDCcqcVfnrePrtuvNBF74hhP?cluster=devnet) |
 | Relay Wallet | `9mNa6ScZtenajirheMFSZLUkAQtbBA7r1MNB8SahiveS` | Mainnet | [Solscan](https://solscan.io/account/9mNa6ScZtenajirheMFSZLUkAQtbBA7r1MNB8SahiveS) |
+
+### Arcium MPC Computation Definitions (Cluster 1)
+
+| Circuit | Offset | PDA | Explorer |
+|---------|--------|-----|----------|
+| init_batch | 3167146940 | `HcF78B6k1xKpeGbJ4ec1gtYd8WwHor47ConXEy3cJ8iB` | [Solscan](https://solscan.io/account/HcF78B6k1xKpeGbJ4ec1gtYd8WwHor47ConXEy3cJ8iB?cluster=devnet) |
+| add_to_batch | 448552201 | `ATH9uoxHikGiFSMa13dpkkpoJjT5aq6aACJWRsCStFyr` | [Solscan](https://solscan.io/account/ATH9uoxHikGiFSMa13dpkkpoJjT5aq6aACJWRsCStFyr?cluster=devnet) |
+| reveal_batch_total | 1072107248 | `FhtdfFsXPjfrTLiNgu3sSsRgHphHRanSPHmc5jwnkrKm` | [Solscan](https://solscan.io/account/FhtdfFsXPjfrTLiNgu3sSsRgHphHRanSPHmc5jwnkrKm?cluster=devnet) |
+| compute_distribution | 623176224 | `J3uC4D1xxX49ieNdq3EvphsCJY7htPVjZCfn5dVV9ygo` | [Solscan](https://solscan.io/account/J3uC4D1xxX49ieNdq3EvphsCJY7htPVjZCfn5dVV9ygo?cluster=devnet) |
 
 ---
 
